@@ -1,0 +1,29 @@
+@model CreateUserModel
+@{
+    ViewData["Title"] = "New user";
+}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h1 class="h3 mb-3">New user</h1>
+        <form asp-action="Create" method="post" class="card card-body">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" autofocus/>
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+            <div class="form-check mb-3">
+                <input asp-for="IsAdmin" class="form-check-input"/>
+                <label asp-for="IsAdmin" class="form-check-label"></label>
+            </div>
+            <p class="small text-muted">A temporary password will be generated and shown once. The user must change it at first sign-in.</p>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Create user</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial"/>
+}

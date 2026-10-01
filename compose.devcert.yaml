@@ -1,0 +1,7 @@
+services:
+  ecommerceplus:
+    environment:
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/ecommerceplus.pfx
+      ASPNETCORE_Kestrel__Certificates__Default__Password: ${CERT_PASSWORD:?Set CERT_PASSWORD to the password used when exporting the certificate}
+    volumes:
+      - ${HOME}/.aspnet/https:/https:ro

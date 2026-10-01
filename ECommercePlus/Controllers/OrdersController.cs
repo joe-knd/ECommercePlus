@@ -1,16 +1,23 @@
+using ECommercePlus.Identity;
+using ECommercePlus.Infrastructure;
 using ECommercePlus.Services.Checkout;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommercePlus.Controllers;
 
-public class OrdersController(ICheckoutService checkout) : Controller
+public class OrdersController(ICheckoutService checkout, IOrderHistory orderHistory) : Controller
 {
+    [Authorize(Policy = Policies.AdminOnly)]
     public async Task<IActionResult> Index(CancellationToken cancellationToken) =>
         View(await checkout.GetRecentOrdersAsync(100, cancellationToken));
 
     [Route("orders/{orderNumber}")]
     public async Task<IActionResult> Details(string orderNumber, CancellationToken cancellationToken)
     {
+        if (!User.IsInRole(Roles.Admin) && !orderHistory.Contains(orderNumber))
+            return NotFound();
+
         var order = await checkout.GetOrderAsync(orderNumber, cancellationToken);
         return order is null ? NotFound() : View(order);
     }

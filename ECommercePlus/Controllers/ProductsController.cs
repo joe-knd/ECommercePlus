@@ -1,12 +1,15 @@
 using ECommercePlus.Domain;
+using ECommercePlus.Identity;
 using ECommercePlus.Infrastructure;
 using ECommercePlus.Services.Import;
 using ECommercePlus.Services.Products;
 using ECommercePlus.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommercePlus.Controllers;
 
+[Authorize(Policy = Policies.AdminOnly)]
 public class ProductsController(IProductService products, IProductCsvImporter importer) : Controller
 {
     public const long MaxImportBytes = 5 * 1024 * 1024;

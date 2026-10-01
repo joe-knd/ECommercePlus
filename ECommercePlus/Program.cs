@@ -1,4 +1,5 @@
 using ECommercePlus.Data;
+using ECommercePlus.Identity;
 using ECommercePlus.Infrastructure;
 using ECommercePlus.Services.Cart;
 using ECommercePlus.Services.Checkout;
@@ -6,10 +7,14 @@ using ECommercePlus.Services.Import;
 using ECommercePlus.Services.Payments;
 using ECommercePlus.Services.Products;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+ConfigureSelfSignedCertificateFallback(builder);
 
 var connectionString = ResolveSqliteConnectionString(
     builder.Configuration.GetConnectionString("Default") ?? "Data Source=App_Data/ecommerce.db",
@@ -18,12 +23,50 @@ var connectionString = ResolveSqliteConnectionString(
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 builder.Services.Configure<SeedOptions>(builder.Configuration.GetSection(SeedOptions.SectionName));
+builder.Services.Configure<AdminSeedOptions>(builder.Configuration.GetSection(AdminSeedOptions.SectionName));
 
+builder.Services
+    .AddIdentity<AppUser, IdentityRole>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 12;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    })
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders()
+    .AddClaimsPrincipalFactory<AppUserClaimsPrincipalFactory>();
+
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(1));
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.Name = ".ECommercePlus.Auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.LoginPath = "/Account/Login";
+    options.LogoutPath = "/Account/Logout";
+    options.AccessDeniedPath = "/Account/AccessDenied";
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+});
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(Policies.AdminOnly, policy => policy.RequireAuthenticatedUser().RequireRole(Roles.Admin));
+
+builder.Services.AddScoped<AdminSeeder>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IProductCsvImporter, ProductCsvImporter>();
 builder.Services.AddScoped<ICartStore, SessionCartStore>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<ICheckoutService, CheckoutService>();
+builder.Services.AddScoped<IOrderHistory, SessionOrderHistory>();
 builder.Services.AddSingleton<IPaymentGateway, FakePaymentGateway>();
 
 var keysDirectory = builder.Configuration["DataProtection:KeysPath"];
@@ -37,9 +80,12 @@ builder.Services.AddSession(options =>
     options.Cookie.Name = ".ECommercePlus.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.IdleTimeout = TimeSpan.FromHours(2);
 });
+builder.Services.AddAntiforgery(options => options.Cookie.SecurePolicy = CookieSecurePolicy.Always);
+builder.Services.Configure<CookieTempDataProviderOptions>(options => options.Cookie.SecurePolicy = CookieSecurePolicy.Always);
 
 builder.Services.AddControllersWithViews(options =>
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
@@ -57,12 +103,12 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStatusCodePagesWithReExecute("/error/{0}");
 app.UseMiddleware<SecurityHeadersMiddleware>();
-
-if (!app.Configuration.GetValue<bool>("DisableHttpsRedirection"))
-    app.UseHttpsRedirection();
+app.UseHttpsRedirection();
 
 app.UseRouting();
 app.UseSession();
+app.UseAuthentication();
+app.UseMiddleware<MustChangePasswordMiddleware>();
 app.UseAuthorization();
 
 app.MapStaticAssets();
@@ -73,6 +119,16 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.Run();
+
+static void ConfigureSelfSignedCertificateFallback(WebApplicationBuilder builder)
+{
+    var path = builder.Configuration["Https:SelfSignedCertificatePath"];
+    if (string.IsNullOrWhiteSpace(path) || !string.IsNullOrWhiteSpace(builder.Configuration["Kestrel:Certificates:Default:Path"]))
+        return;
+
+    var certificate = SelfSignedCertificate.LoadOrCreate(Path.GetFullPath(path, builder.Environment.ContentRootPath));
+    builder.WebHost.ConfigureKestrel(kestrel => kestrel.ConfigureHttpsDefaults(https => https.ServerCertificate = certificate));
+}
 
 static string ResolveSqliteConnectionString(string connectionString, string contentRoot)
 {

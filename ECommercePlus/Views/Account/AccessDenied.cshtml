@@ -1,0 +1,8 @@
+@{
+    ViewData["Title"] = "Access denied";
+}
+<div class="text-center py-5">
+    <h1 class="display-6">Access denied</h1>
+    <p class="lead text-muted">You do not have permission to view this page. The admin area requires the @Roles.Admin role.</p>
+    <a asp-controller="Shop" asp-action="Index" class="btn btn-primary">Back to the shop</a>
+</div>

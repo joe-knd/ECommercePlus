@@ -5,6 +5,7 @@ services:
       context: .
       dockerfile: ECommercePlus/Dockerfile
     ports:
+      - "8443:8443"
       - "8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production

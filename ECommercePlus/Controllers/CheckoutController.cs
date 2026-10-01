@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ECommercePlus.Controllers;
 
-public class CheckoutController(ICartService cart, ICheckoutService checkout) : Controller
+public class CheckoutController(ICartService cart, ICheckoutService checkout, IOrderHistory orderHistory) : Controller
 {
     private const string FormPrefix = nameof(CheckoutViewModel.Form);
 
@@ -44,6 +44,7 @@ public class CheckoutController(ICartService cart, ICheckoutService checkout) : 
         }
 
         cart.Clear();
+        orderHistory.Add(result.Value!.OrderNumber);
         TempData[TempDataKeys.Success] = "Thank you! Your order has been placed.";
         return RedirectToAction("Details", "Orders", new { orderNumber = result.Value!.OrderNumber });
     }

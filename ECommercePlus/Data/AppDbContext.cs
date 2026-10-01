@@ -1,9 +1,11 @@
 using ECommercePlus.Domain;
+using ECommercePlus.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommercePlus.Data;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider timeProvider) : DbContext(options)
+public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider timeProvider) : IdentityDbContext<AppUser>(options)
 {
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Order> Orders => Set<Order>();
@@ -11,6 +13,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider t
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<Product>(entity =>
         {
             entity.Property(p => p.Name).HasMaxLength(ProductRules.NameMaxLength).IsRequired();

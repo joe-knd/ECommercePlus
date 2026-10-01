@@ -1,6 +1,8 @@
 <Solution>
   <Folder Name="/Solution Items/">
     <File Path="compose.yaml" />
+    <File Path="compose.devcert.yaml" />
+    <File Path="README.md" />
   </Folder>
   <Project Path="ECommercePlus.Tests/ECommercePlus.Tests.csproj" />
   <Project Path="ECommercePlus/ECommercePlus.csproj" />

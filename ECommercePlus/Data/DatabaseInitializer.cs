@@ -1,3 +1,4 @@
+using ECommercePlus.Identity;
 using ECommercePlus.Services.Import;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -21,6 +22,7 @@ public static class DatabaseInitializer
         var db = provider.GetRequiredService<AppDbContext>();
 
         await db.Database.MigrateAsync(cancellationToken);
+        await provider.GetRequiredService<AdminSeeder>().SeedAsync();
 
         var options = provider.GetRequiredService<IOptions<SeedOptions>>().Value;
         if (!options.Enabled || await db.Products.AnyAsync(cancellationToken))

@@ -6,6 +6,8 @@ A small e-commerce application built with **ASP.NET Core MVC (.NET 10)**, **EF C
 - **CSV import** with a row-by-row report showing what was created, updated, unchanged, rejected, or ignored.
 - **Product search**: free text, category, price range, in-stock filter, sorting, and pagination.
 - **Purchasing**: session cart, checkout, a **fake payment gateway**, and order history.
+- **ASP.NET Core Identity**: a seeded `Admin` role and admin account with a temporary password, plus a small **Users** admin section. Everything under *Admin* requires the `Admin` role.
+- **HTTPS only**: plain HTTP requests are redirected to HTTPS, and every cookie is `Secure`.
 - **Docker**: one container, with the SQLite database kept in a volume.
 
 > **Sample CSV:** The example file *"LoanPro Code Challenge E-Commerce"* was downloaded on **2026-09-30**.
@@ -23,8 +25,15 @@ Requirements: Docker Desktop / Docker Engine with Compose v2.
 docker compose up --build
 ```
 
-Open <http://localhost:8080>.
+Open <https://localhost:8443>. Plain <http://localhost:8080> redirects there.
 
+- Unless you mount a certificate, the container creates a **self-signed certificate** for `localhost` on first start (kept on the volume), so your browser shows a warning you'll need to accept once. To use your trusted .NET dev certificate instead:
+
+  ```bash
+  dotnet dev-certs https -ep ~/.aspnet/https/ecommerceplus.pfx -p <choose-a-password>
+  dotnet dev-certs https --trust
+  CERT_PASSWORD=<choose-a-password> docker compose -f compose.yaml -f compose.devcert.yaml up --build
+  ```
 - Data is stored in the named volume `ecommerceplus-data`, so it survives restarts.
 - To start over with a fresh database, run `docker compose down -v`.
 
@@ -32,7 +41,7 @@ Without Compose:
 
 ```bash
 docker build -f ECommercePlus/Dockerfile -t ecommerceplus .
-docker run --rm -p 8080:8080 -v ecommerceplus-data:/app/App_Data ecommerceplus
+docker run --rm -p 8443:8443 -p 8080:8080 -v ecommerceplus-data:/app/App_Data ecommerceplus
 ```
 
 ### Option 2: Run locally with the .NET SDK
@@ -40,13 +49,25 @@ docker run --rm -p 8080:8080 -v ecommerceplus-data:/app/App_Data ecommerceplus
 Requirements: [.NET SDK 10.0](https://dotnet.microsoft.com/download).
 
 ```bash
-dotnet run --project ECommercePlus --launch-profile http
+dotnet dev-certs https --trust
+dotnet run --project ECommercePlus
 ```
 
-Open <http://localhost:5213>.
+Open <https://localhost:7268>. <http://localhost:5213> redirects there. `dotnet dev-certs https --trust` only needs to run once per machine; it creates and trusts the local development certificate.
 
 - The SQLite file is created at `ECommercePlus/App_Data/ecommerce.db`. Delete the folder to reset.
-- Migrations run automatically at startup.
+- **You don't need to run migrations.** Pending EF Core migrations, including the Identity tables, are applied automatically at startup, followed by the admin and CSV seeding.
+
+### Signing in as the admin
+
+On first start with an empty database, the app creates the `Admin` role and the account **`admin@ecommerceplus.local`** with a random temporary password. The password is never logged. It is written to a file that only the app user can read:
+
+```bash
+cat ECommercePlus/App_Data/initial-admin-password.txt                                   # local
+docker compose exec ecommerceplus cat /app/App_Data/initial-admin-password.txt          # Docker
+```
+
+To choose the temporary password yourself, set `AdminSeed__Password` (and optionally `AdminSeed__Email`) as environment variables before the first start. In both cases you must **change the password at first sign-in**, and the file is deleted once you do.
 
 ### Run the tests
 
@@ -54,14 +75,18 @@ Open <http://localhost:5213>.
 dotnet test
 ```
 
-There are 44 tests: unit tests for import, search, CRUD, checkout, and payments, plus integration tests that boot the full app with `WebApplicationFactory`.
+There are 61 tests: unit tests for import, search, CRUD, checkout, payments, and temporary passwords, plus integration tests that boot the full app over HTTPS with `WebApplicationFactory` (sign-in, forced password change, role checks, the HTTP→HTTPS redirect, and Secure cookies).
 
-### Optional: EF Core tooling
+### Optional: EF Core tooling (only when you change the data model)
+
+This is for developers changing the entities. It isn't needed to run the app. `<Name>` is a descriptive name you choose for the new migration, for example `AddProductBrand`. The existing migrations are `InitialCreate` and `AddIdentity`.
 
 ```bash
 dotnet tool restore
-dotnet ef migrations add <Name> --project ECommercePlus --output-dir Data/Migrations
+dotnet ef migrations add AddProductBrand --project ECommercePlus --output-dir Data/Migrations
 ```
+
+The next app start applies it automatically.
 
 ---
 
@@ -72,9 +97,14 @@ dotnet ef migrations add <Name> --project ECommercePlus --output-dir Data/Migrat
 | Shop | `/Shop` | Browse and search the catalog, view details, add to cart |
 | Cart | `/Cart` | Change quantities, remove items, go to checkout |
 | Checkout | `/Checkout` | Customer and shipping details plus a fake card payment |
-| Orders | `/Orders` | Recent orders and order details/receipt |
-| Admin → Manage products | `/Products` | List, search, create, edit, and delete products |
-| Admin → Import CSV | `/Products/Import` | Upload a CSV and see the import report |
+| Order receipt | `/Orders/Details/{number}` | Shown after checkout. Visible only to the browser session that placed the order, or to an admin |
+| Sign in / Change password | `/Account/Login`, `/Account/ChangePassword` | Cookie sign-in with ASP.NET Core Identity |
+| Admin → Manage products | `/Products` | List, search, create, edit, and delete products *(Admin role)* |
+| Admin → Import CSV | `/Products/Import` | Upload a CSV and see the import report *(Admin role)* |
+| Admin → Orders | `/Orders` | All recent orders *(Admin role)* |
+| Admin → Users | `/Users` | Create users (with a generated temporary password), reset passwords, grant or revoke Admin, lock or unlock, delete *(Admin role)* |
+
+Shopping (search, cart, checkout) doesn't require an account. The *Admin* menu appears only for users in the `Admin` role, and any admin URL returns *Access denied* for other signed-in users or redirects anonymous users to sign in.
 | Health | `/health` | Liveness and database check |
 
 **Fake payment test cards** (any future expiry date and any 3–4 digit CVV):
@@ -100,10 +130,11 @@ ECommercePlus/
 │   ├── Cart/          CartService over an ICartStore (session-backed)
 │   ├── Checkout/      CheckoutService: stock reservation, payment, order creation (transactional)
 │   └── Payments/      IPaymentGateway + FakePaymentGateway, Luhn helper
-├── Controllers/       Thin MVC controllers (Shop, Products, Cart, Checkout, Orders, Home/Error)
+├── Identity/          AppUser, roles/policies, admin seeding, temporary passwords, must-change-password middleware
+├── Controllers/       Thin MVC controllers (Shop, Products, Cart, Checkout, Orders, Account, Users, Home/Error)
 ├── ViewModels/        Form/view models (DataAnnotations for client-side validation)
 ├── Views/             Razor views (Bootstrap 5)
-├── Infrastructure/    Security headers middleware, money formatting, helpers
+├── Infrastructure/    Security headers middleware, self-signed certificate fallback, session order history, money formatting
 └── SeedData/          The sample CSV
 ECommercePlus.Tests/   xUnit tests (SQLite in-memory + WebApplicationFactory)
 ```
@@ -173,6 +204,18 @@ With the sample file on an empty database, the result is: **97 rows → 88 creat
 - **Order lines keep a snapshot** of product name, SKU, and unit price. Deleting a product later sets the line's `ProductId` to null but keeps the order history.
 - **`FakePaymentGateway`** implements `IPaymentGateway`. It checks Luhn, expiry, and CVV, and supports Stripe-style test cards for declines. Only the **last 4 digits** are stored. Card number and CVV are never saved or logged, and they are cleared when the form is shown again after an error.
 
+### Authentication and authorization: ASP.NET Core Identity
+- The `AppDbContext` extends `IdentityDbContext<AppUser>`, so users and roles live in the same SQLite database, added by the `AddIdentity` migration. There is no external identity server; cookie authentication is enough for a single app.
+- **Policy-based authorization**: an `AdminOnly` policy (requires the `Admin` role) protects `ProductsController`, `UsersController`, and the order list.
+- **Temporary passwords**: the seeded admin and any user created or reset by an admin get a random password that meets the policy and is shown once. A `must_change_password` claim and a middleware restrict the user to *Change password* until they set their own.
+- **Safety rails in user admin**: admins can't delete, lock, or demote themselves, and the last active admin can't be removed. Role changes and locks rotate the security stamp, and cookies are re-validated every minute, so revoked access takes effect quickly.
+- Password policy: at least 12 characters with upper case, lower case, digit, and symbol. Lockout after 5 failed attempts for 15 minutes. Sign-in errors don't reveal whether an account exists.
+
+### HTTPS
+- `UseHttpsRedirection` is always on, and HSTS is on outside Development (browsers ignore HSTS for `localhost`).
+- Auth, session, antiforgery, and TempData cookies use `SecurePolicy = Always`, plus `HttpOnly` and `SameSite`.
+- Certificates: locally, the .NET dev certificate. In Docker, a mounted certificate (`Kestrel__Certificates__Default__*`) if provided. Otherwise the app generates a self-signed `localhost` certificate on the volume so HTTPS works out of the box. In production, TLS would typically end at a reverse proxy or load balancer with a real certificate, and `ForwardedHeaders` would be enabled.
+
 ### Security and operational concerns
 - A global `AutoValidateAntiforgeryToken` filter protects every POST.
 - Security headers: a strict **Content-Security-Policy** (no inline scripts or styles), `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, and `Permissions-Policy`.
@@ -197,9 +240,13 @@ With the sample file on an empty database, the result is: **97 rows → 88 creat
 | CSV `free` price | Treat as `0.00` | Too risky for a price field. Rejecting it and reporting it is the safe default. |
 | Cart storage | DB-persisted cart / client cookie | A DB cart is needed for multi-device carts, which requires user accounts. A cookie-only cart could be tampered with. A session holds only IDs and quantities and is re-validated on every request. |
 | Payment | Real sandbox (Stripe test mode) | Not required, and it would need API keys. The `IPaymentGateway` boundary makes swapping it in a single class. |
+| Auth | Duende IdentityServer / OpenIddict / Entra ID | An identity server is only worth it with several clients or APIs that need tokens. ASP.NET Core Identity with cookies covers one MVC app. |
+| Auth | Fixed admin password in `appsettings.json` | A known password in source control is a security risk. A random one-time password plus a forced change is safer. |
+| HTTPS in Docker | HTTP only behind a TLS-terminating proxy | That's the common production setup, but the challenge runs the container directly, so the app serves HTTPS itself. |
 
 ## Known limitations / next steps
-- **No authentication or authorization.** The *Admin* area is open, and orders are visible to everyone. Next step: ASP.NET Core Identity with an `Admin` role on `ProductsController`, and orders scoped to the customer.
+- Customers check out as guests, so there is no "my orders" page across sessions. Next step: optional customer accounts with orders linked to the user.
+- No email confirmation or self-service password reset (admins reset passwords). Next step: an `IEmailSender` and Identity's token providers.
 - The session uses an in-memory store, so carts are lost on restart and don't work across multiple instances. Next step: a distributed cache (Redis) or DB-backed carts.
 - SQLite allows only one writer at a time. That's fine for a single instance. For horizontal scaling, move to PostgreSQL.
 - Payment is charged inside the stock-reservation transaction, which is acceptable with an in-process fake. With a real provider, use authorize/capture plus an outbox or saga so the database lock isn't held during a network call.
