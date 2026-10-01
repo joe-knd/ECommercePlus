@@ -25,30 +25,22 @@ Requirements: Docker Desktop (Windows / macOS) or Docker Engine (Linux) with Com
 docker compose up --build
 ```
 
-Open <https://localhost:8443>. Plain <http://localhost:8080> redirects there.
+Open [https://localhost:8443](https://localhost:8443). Plain [http://localhost:8080](http://localhost:8080) redirects there.
 
-- Unless you mount a certificate, the container creates a **self-signed certificate** for `localhost` on first start (kept on the volume), so your browser shows a warning you'll need to accept once. To use your trusted .NET dev certificate instead:
+- Data is stored in the named volume `ecommerceplus-data`, so it survives `docker compose stop`, `docker compose down`, and rebuilds.
+- The container creates a **self-signed certificate** for `localhost` the first time it starts. Your browser shows a security warning once; choose *Advanced → Continue*. To avoid the warning, see [Optional: use the trusted .NET dev certificate in Docker](#optional-use-the-trusted-net-dev-certificate-in-docker).
 
-  macOS / Linux (bash, zsh):
+Everyday commands:
 
-  ```bash
-  dotnet dev-certs https -ep ~/.aspnet/https/ecommerceplus.pfx -p <choose-a-password>
-  dotnet dev-certs https --trust
-  CERT_PASSWORD=<choose-a-password> docker compose -f compose.yaml -f compose.devcert.yaml up --build
-  ```
+| Goal | Command |
+|---|---|
+| Build and start (first time, or after code changes) | `docker compose up --build -d` |
+| Start again without rebuilding | `docker compose up -d` |
+| Follow the logs | `docker compose logs -f` |
+| Stop (data is kept) | `docker compose down` |
+| Stop and **erase all data** (database, keys, certificate) | `docker compose down -v` |
 
-  Windows (PowerShell):
-
-  ```powershell
-  dotnet dev-certs https -ep "$env:USERPROFILE\.aspnet\https\ecommerceplus.pfx" -p <choose-a-password>
-  dotnet dev-certs https --trust
-  $env:CERT_PASSWORD = "<choose-a-password>"
-  docker compose -f compose.yaml -f compose.devcert.yaml up --build
-  ```
-
-  On Linux, `dotnet dev-certs https --trust` only trusts the certificate for some browsers and tools. See the .NET docs for your distribution.
-- Data is stored in the named volume `ecommerceplus-data`, so it survives restarts.
-- To start over with a fresh database, run `docker compose down -v`.
+`-d` runs the container in the background. Without it, logs stream in the terminal and Ctrl+C stops the app.
 
 Without Compose:
 
@@ -56,6 +48,29 @@ Without Compose:
 docker build -f ECommercePlus/Dockerfile -t ecommerceplus .
 docker run --rm -p 8443:8443 -p 8080:8080 -v ecommerceplus-data:/app/App_Data ecommerceplus
 ```
+
+#### Optional: use the trusted .NET dev certificate in Docker
+
+Requires the .NET SDK on the host. Export the dev certificate once, then start with the `compose.devcert.yaml` override.
+
+macOS / Linux (bash, zsh):
+
+```bash
+dotnet dev-certs https -ep ~/.aspnet/https/ecommerceplus.pfx -p <choose-a-password>
+dotnet dev-certs https --trust
+CERT_PASSWORD=<choose-a-password> docker compose -f compose.yaml -f compose.devcert.yaml up --build -d
+```
+
+Windows (PowerShell):
+
+```powershell
+dotnet dev-certs https -ep "$env:USERPROFILE\.aspnet\https\ecommerceplus.pfx" -p <choose-a-password>
+dotnet dev-certs https --trust
+$env:CERT_PASSWORD = "<choose-a-password>"
+docker compose -f compose.yaml -f compose.devcert.yaml up --build -d
+```
+
+On Linux, `dotnet dev-certs https --trust` only trusts the certificate for some browsers and tools. See the .NET docs for your distribution.
 
 ### Option 2: Run locally with the .NET SDK
 
@@ -66,7 +81,7 @@ dotnet dev-certs https --trust
 dotnet run --project ECommercePlus
 ```
 
-Open <https://localhost:7268>. <http://localhost:5213> redirects there. `dotnet dev-certs https --trust` only needs to run once per machine; it creates and trusts the local development certificate.
+Open [https://localhost:7268](https://localhost:7268). Plain [http://localhost:5213](http://localhost:5213) redirects there. `dotnet dev-certs https --trust` only needs to run once per machine; it creates and trusts the local development certificate.
 
 - The SQLite file is created at `ECommercePlus/App_Data/ecommerce.db`. Delete the folder to reset.
 - **You don't need to run migrations.** Pending EF Core migrations, including the Identity tables, are applied automatically at startup, followed by the admin and CSV seeding.
@@ -91,7 +106,7 @@ There are 61 tests: unit tests for import, search, CRUD, checkout, payments, and
 
 ### Optional: EF Core tooling (only when you change the data model)
 
-This is for developers changing the entities. It isn't needed to run the app. `<Name>` is a descriptive name you choose for the new migration, for example `AddProductBrand`. The existing migrations are `InitialCreate` and `AddIdentity`.
+This is only for developers who change the entities; it isn't needed to run the app. The last argument after `migrations add` is a descriptive name you choose for the new migration (`AddProductBrand` below is just an example). The existing migrations are `InitialCreate` and `AddIdentity`.
 
 ```bash
 dotnet tool restore
@@ -115,9 +130,9 @@ The next app start applies it automatically.
 | Admin → Import CSV | `/Products/Import` | Upload a CSV and see the import report *(Admin role)* |
 | Admin → Orders | `/Orders` | All recent orders *(Admin role)* |
 | Admin → Users | `/Users` | Create users (with a generated temporary password), reset passwords, grant or revoke Admin, lock or unlock, delete *(Admin role)* |
+| Health | `/health` | Liveness and database check |
 
 Shopping (search, cart, checkout) doesn't require an account. The *Admin* menu appears only for users in the `Admin` role, and any admin URL returns *Access denied* for other signed-in users or redirects anonymous users to sign in.
-| Health | `/health` | Liveness and database check |
 
 **Fake payment test cards** (any future expiry date and any 3–4 digit CVV):
 
