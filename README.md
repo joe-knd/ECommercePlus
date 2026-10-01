@@ -19,7 +19,7 @@ A small e-commerce application built with **ASP.NET Core MVC (.NET 10)**, **EF C
 
 ### Option 1: Docker (recommended)
 
-Requirements: Docker Desktop / Docker Engine with Compose v2.
+Requirements: Docker Desktop (Windows / macOS) or Docker Engine (Linux) with Compose v2. The image is multi-arch (x64 and Arm64, e.g. Apple Silicon), and the same commands work in bash, zsh, and PowerShell.
 
 ```bash
 docker compose up --build
@@ -29,11 +29,24 @@ Open <https://localhost:8443>. Plain <http://localhost:8080> redirects there.
 
 - Unless you mount a certificate, the container creates a **self-signed certificate** for `localhost` on first start (kept on the volume), so your browser shows a warning you'll need to accept once. To use your trusted .NET dev certificate instead:
 
+  macOS / Linux (bash, zsh):
+
   ```bash
   dotnet dev-certs https -ep ~/.aspnet/https/ecommerceplus.pfx -p <choose-a-password>
   dotnet dev-certs https --trust
   CERT_PASSWORD=<choose-a-password> docker compose -f compose.yaml -f compose.devcert.yaml up --build
   ```
+
+  Windows (PowerShell):
+
+  ```powershell
+  dotnet dev-certs https -ep "$env:USERPROFILE\.aspnet\https\ecommerceplus.pfx" -p <choose-a-password>
+  dotnet dev-certs https --trust
+  $env:CERT_PASSWORD = "<choose-a-password>"
+  docker compose -f compose.yaml -f compose.devcert.yaml up --build
+  ```
+
+  On Linux, `dotnet dev-certs https --trust` only trusts the certificate for some browsers and tools. See the .NET docs for your distribution.
 - Data is stored in the named volume `ecommerceplus-data`, so it survives restarts.
 - To start over with a fresh database, run `docker compose down -v`.
 
