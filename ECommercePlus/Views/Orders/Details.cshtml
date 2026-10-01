@@ -1,0 +1,40 @@
+@model Order
+@{
+    ViewData["Title"] = $"Order {Model.OrderNumber}";
+}
+<h1 class="h3 mb-1">Order @Model.OrderNumber</h1>
+<p class="text-muted">Placed @Model.CreatedAtUtc.ToString("u") &middot; <span class="badge bg-success">@Model.Status</span></p>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <table class="table align-middle">
+            <thead>
+            <tr><th>Product</th><th class="text-end">Unit price</th><th class="text-end">Qty</th><th class="text-end">Total</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var item in Model.Items)
+            {
+                <tr>
+                    <td>@item.ProductName<div class="small text-muted">SKU @item.Sku</div></td>
+                    <td class="text-end">@Money.Format(item.UnitPrice)</td>
+                    <td class="text-end">@item.Quantity</td>
+                    <td class="text-end">@Money.Format(item.LineTotal)</td>
+                </tr>
+            }
+            </tbody>
+            <tfoot>
+            <tr><th colspan="3" class="text-end">Total</th><th class="text-end fs-5">@Money.Format(Model.Total)</th></tr>
+            </tfoot>
+        </table>
+    </div>
+    <div class="col-lg-4">
+        <div class="card card-body small">
+            <h2 class="h6">Customer</h2>
+            <p class="mb-2">@Model.CustomerName<br/>@Model.CustomerEmail</p>
+            <h2 class="h6">Shipping address</h2>
+            <p class="mb-2 text-prewrap">@Model.ShippingAddress</p>
+            <h2 class="h6">Payment</h2>
+            <p class="mb-0">Card ending in @Model.CardLast4<br/><span class="text-muted">Ref: @Model.PaymentReference</span></p>
+        </div>
+    </div>
+</div>
+<a asp-controller="Shop" asp-action="Index" class="btn btn-primary">Continue shopping</a>

@@ -1,0 +1,53 @@
+@model ECommercePlus.Services.Import.ImportReport
+@using ECommercePlus.Services.Import
+@{
+    ViewData["Title"] = "Import result";
+}
+<h1 class="h3 mb-3">Import result</h1>
+@if (!Model.Succeeded)
+{
+    <div class="alert alert-danger">@Model.FatalError</div>
+}
+else
+{
+    <div class="row row-cols-2 row-cols-md-6 g-2 mb-4 text-center">
+        <div class="col"><div class="card card-body"><div class="fs-4">@Model.TotalRows</div><div class="small text-muted">Rows read</div></div></div>
+        <div class="col"><div class="card card-body border-success"><div class="fs-4 text-success">@Model.Created</div><div class="small text-muted">Created</div></div></div>
+        <div class="col"><div class="card card-body border-primary"><div class="fs-4 text-primary">@Model.Updated</div><div class="small text-muted">Updated</div></div></div>
+        <div class="col"><div class="card card-body"><div class="fs-4">@Model.Unchanged</div><div class="small text-muted">Unchanged</div></div></div>
+        <div class="col"><div class="card card-body border-danger"><div class="fs-4 text-danger">@Model.Rejected</div><div class="small text-muted">Rejected</div></div></div>
+        <div class="col"><div class="card card-body"><div class="fs-4">@Model.Ignored</div><div class="small text-muted">Ignored</div></div></div>
+    </div>
+
+    @if (Model.Issues.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                <tr><th>Row</th><th>SKU</th><th>Severity</th><th>Message</th></tr>
+                </thead>
+                <tbody>
+                @foreach (var issue in Model.Issues.OrderBy(i => i.Row))
+                {
+                    var css = issue.Severity switch
+                    {
+                        ImportIssueSeverity.Error => "table-danger",
+                        ImportIssueSeverity.Warning => "table-warning",
+                        _ => ""
+                    };
+                    <tr class="@css">
+                        <td>@issue.Row</td>
+                        <td><code>@(issue.Sku ?? "-")</code></td>
+                        <td>@issue.Severity</td>
+                        <td>@issue.Message</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+<div class="d-flex gap-2">
+    <a asp-action="Index" class="btn btn-primary">Go to products</a>
+    <a asp-action="Import" class="btn btn-outline-secondary">Import another file</a>
+</div>

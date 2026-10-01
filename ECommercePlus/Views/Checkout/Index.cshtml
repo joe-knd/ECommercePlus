@@ -1,0 +1,86 @@
+@model CheckoutViewModel
+@using ECommercePlus.Services.Payments
+@{
+    ViewData["Title"] = "Checkout";
+    var f = Model.Form;
+}
+<h1 class="h3 mb-3">Checkout</h1>
+<div class="row g-4">
+    <div class="col-lg-7">
+        <form asp-action="Index" method="post" class="card card-body" autocomplete="on">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+            <input type="hidden" asp-for="Form.CheckoutToken"/>
+
+            <h2 class="h5">Contact &amp; shipping</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label asp-for="Form.Name" class="form-label"></label>
+                    <input asp-for="Form.Name" class="form-control" autocomplete="name"/>
+                    <span asp-validation-for="Form.Name" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Form.Email" class="form-label"></label>
+                    <input asp-for="Form.Email" class="form-control" autocomplete="email"/>
+                    <span asp-validation-for="Form.Email" class="text-danger small"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Form.ShippingAddress" class="form-label"></label>
+                    <textarea asp-for="Form.ShippingAddress" class="form-control" rows="2" autocomplete="street-address"></textarea>
+                    <span asp-validation-for="Form.ShippingAddress" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <h2 class="h5">Payment</h2>
+            <div class="alert alert-secondary small">
+                This is a simulated payment. Use any Luhn-valid card number such as <code>4242 4242 4242 4242</code> with a future expiry date.
+                <code>@FakePaymentGateway.DeclinedTestCard</code> is always declined; <code>@FakePaymentGateway.InsufficientFundsTestCard</code> fails with insufficient funds.
+            </div>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label asp-for="Form.CardholderName" class="form-label"></label>
+                    <input asp-for="Form.CardholderName" class="form-control" autocomplete="cc-name"/>
+                    <span asp-validation-for="Form.CardholderName" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Form.CardNumber" class="form-label"></label>
+                    <input asp-for="Form.CardNumber" class="form-control" inputmode="numeric" autocomplete="cc-number" placeholder="4242 4242 4242 4242"/>
+                    <span asp-validation-for="Form.CardNumber" class="text-danger small"></span>
+                </div>
+                <div class="col-4 col-md-2">
+                    <label asp-for="Form.ExpiryMonth" class="form-label"></label>
+                    <input asp-for="Form.ExpiryMonth" class="form-control" type="number" min="1" max="12" placeholder="MM" autocomplete="cc-exp-month"/>
+                    <span asp-validation-for="Form.ExpiryMonth" class="text-danger small"></span>
+                </div>
+                <div class="col-4 col-md-2">
+                    <label asp-for="Form.ExpiryYear" class="form-label"></label>
+                    <input asp-for="Form.ExpiryYear" class="form-control" type="number" min="2000" max="2100" placeholder="YYYY" autocomplete="cc-exp-year"/>
+                    <span asp-validation-for="Form.ExpiryYear" class="text-danger small"></span>
+                </div>
+                <div class="col-4 col-md-2">
+                    <label asp-for="Form.Cvv" class="form-label"></label>
+                    <input asp-for="Form.Cvv" class="form-control" inputmode="numeric" autocomplete="cc-csc" maxlength="4"/>
+                    <span asp-validation-for="Form.Cvv" class="text-danger small"></span>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-success btn-lg mt-4">Pay @Money.Format(Model.Cart.Total)</button>
+        </form>
+    </div>
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">Order summary</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var line in Model.Cart.Lines)
+                {
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>@line.Product.Name <span class="text-muted">&times; @line.Quantity</span></span>
+                        <span>@Money.Format(line.LineTotal)</span>
+                    </li>
+                }
+                <li class="list-group-item d-flex justify-content-between fw-semibold">
+                    <span>Total</span>
+                    <span>@Money.Format(Model.Cart.Total)</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

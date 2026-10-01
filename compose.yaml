@@ -1,0 +1,16 @@
+services:
+  ecommerceplus:
+    image: ecommerceplus
+    build:
+      context: .
+      dockerfile: ECommercePlus/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    volumes:
+      - ecommerceplus-data:/app/App_Data
+    restart: unless-stopped
+
+volumes:
+  ecommerceplus-data:

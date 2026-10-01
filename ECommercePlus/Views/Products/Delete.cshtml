@@ -1,0 +1,13 @@
+@model Product
+@{
+    ViewData["Title"] = "Delete product";
+}
+<h1 class="h3 mb-3">Delete product</h1>
+<div class="alert alert-warning">
+    Are you sure you want to delete <strong>@Model.Name</strong> (<code>@Model.Sku</code>)? This cannot be undone.
+    Existing orders keep a snapshot of the product name, SKU and price.
+</div>
+<form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-flex gap-2">
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Cancel</a>
+</form>

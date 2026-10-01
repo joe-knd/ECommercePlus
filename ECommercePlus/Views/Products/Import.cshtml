@@ -1,0 +1,29 @@
+@{
+    ViewData["Title"] = "Import products";
+}
+<h1 class="h3 mb-3">Import products from CSV</h1>
+<div class="row g-4">
+    <div class="col-lg-6">
+        <form asp-action="Import" method="post" enctype="multipart/form-data" class="card card-body">
+            <div asp-validation-summary="All" class="text-danger small"></div>
+            <label for="file" class="form-label">CSV file (max 5 MB)</label>
+            <input type="file" id="file" name="file" accept=".csv,text/csv" class="form-control mb-3" required/>
+            <button type="submit" class="btn btn-primary">Import</button>
+        </form>
+    </div>
+    <div class="col-lg-6">
+        <div class="card card-body small">
+            <h2 class="h6">Expected format</h2>
+            <pre class="mb-2"><code>name,sku,description,category,price,stock,weight_kg</code></pre>
+            <ul class="mb-0">
+                <li><strong>Required:</strong> name, sku, price, stock. Column order does not matter; headers are case-insensitive.</li>
+                <li>Products are matched by <strong>SKU</strong> (case-insensitive): existing products are updated, new ones are created.</li>
+                <li>If a SKU appears more than once in the file, the <strong>last</strong> row wins.</li>
+                <li>Prices may include a leading <code>$</code>; non-numeric prices (e.g. <code>free</code>) and negative values are rejected.</li>
+                <li>Stock must be a non-negative whole number. Weight is optional.</li>
+                <li>Empty category becomes <em>@ProductRules.DefaultCategory</em>. Blank rows are ignored.</li>
+                <li>Invalid rows are skipped and reported; valid rows are imported in a single transaction.</li>
+            </ul>
+        </div>
+    </div>
+</div>

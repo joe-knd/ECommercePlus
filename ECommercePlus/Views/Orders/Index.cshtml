@@ -1,0 +1,32 @@
+@model IReadOnlyList<Order>
+@{
+    ViewData["Title"] = "Orders";
+}
+<h1 class="h3 mb-3">Recent orders</h1>
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info">No orders yet. <a asp-controller="Shop" asp-action="Index">Start shopping</a>.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+            <tr><th>Order</th><th>Date (UTC)</th><th>Customer</th><th class="text-end">Items</th><th class="text-end">Total</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var o in Model)
+            {
+                <tr>
+                    <td><a asp-action="Details" asp-route-orderNumber="@o.OrderNumber">@o.OrderNumber</a></td>
+                    <td>@o.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@o.CustomerName<div class="small text-muted">@o.CustomerEmail</div></td>
+                    <td class="text-end">@o.ItemCount</td>
+                    <td class="text-end">@Money.Format(o.Total)</td>
+                    <td><span class="badge bg-success">@o.Status</span></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

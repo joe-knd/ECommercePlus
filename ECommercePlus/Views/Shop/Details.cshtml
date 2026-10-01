@@ -1,0 +1,39 @@
+@model Product
+@{
+    ViewData["Title"] = Model.Name;
+}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-action="Index">Shop</a></li>
+        <li class="breadcrumb-item"><a asp-action="Index" asp-route-category="@Model.Category">@Model.Category</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Name</li>
+    </ol>
+</nav>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <h1 class="h3">@Model.Name</h1>
+        <p class="text-muted">SKU @Model.Sku</p>
+        <p>@Model.Description</p>
+        <dl class="row small">
+            <dt class="col-sm-3">Category</dt>
+            <dd class="col-sm-9">@Model.Category</dd>
+            <dt class="col-sm-3">Weight</dt>
+            <dd class="col-sm-9">@(Model.WeightKg is { } w ? $"{w:0.###} kg" : "N/A")</dd>
+            <dt class="col-sm-3">Availability</dt>
+            <dd class="col-sm-9"><partial name="_StockBadge" model="Model.Stock"/> <span class="text-muted">(@Model.Stock units)</span></dd>
+        </dl>
+    </div>
+    <div class="col-lg-4">
+        <div class="card card-body">
+            <p class="display-6 mb-3">@Money.Format(Model.Price)</p>
+            <form asp-controller="Cart" asp-action="Add" method="post">
+                <input type="hidden" name="productId" value="@Model.Id"/>
+                <label for="quantity" class="form-label">Quantity</label>
+                <input type="number" id="quantity" name="quantity" value="1" min="1" max="@Math.Max(1, Model.Stock)" class="form-control mb-3" disabled="@(!Model.InStock)"/>
+                <button type="submit" class="btn btn-primary w-100" disabled="@(!Model.InStock)">
+                    @(Model.InStock ? "Add to cart" : "Out of stock")
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
