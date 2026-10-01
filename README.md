@@ -60,14 +60,13 @@ Open <https://localhost:7268>. <http://localhost:5213> redirects there. `dotnet 
 
 ### Signing in as the admin
 
-On first start with an empty database, the app creates the `Admin` role and the account **`admin@ecommerceplus.local`** with a random temporary password. The password is never logged. It is written to a file that only the app user can read:
+On first start, the app creates the `Admin` role and this account:
 
-```bash
-cat ECommercePlus/App_Data/initial-admin-password.txt                                   # local
-docker compose exec ecommerceplus cat /app/App_Data/initial-admin-password.txt          # Docker
-```
+| Email | Temporary password |
+|---|---|
+| `admin@ecommerceplus.local` | `P@ssw0rd!123` |
 
-To choose the temporary password yourself, set `AdminSeed__Password` (and optionally `AdminSeed__Email`) as environment variables before the first start. In both cases you must **change the password at first sign-in**, and the file is deleted once you do.
+You must **change the password at first sign-in**. The default is set in `appsettings.json` (`AdminSeed:Password`) and can be overridden with the `AdminSeed__Password` / `AdminSeed__Email` environment variables. If you set `AdminSeed__Password` to an empty value, a random password is generated instead and written to `App_Data/initial-admin-password.txt` (the file is deleted after the first password change).
 
 ### Run the tests
 
@@ -207,7 +206,7 @@ With the sample file on an empty database, the result is: **97 rows → 88 creat
 ### Authentication and authorization: ASP.NET Core Identity
 - The `AppDbContext` extends `IdentityDbContext<AppUser>`, so users and roles live in the same SQLite database, added by the `AddIdentity` migration. There is no external identity server; cookie authentication is enough for a single app.
 - **Policy-based authorization**: an `AdminOnly` policy (requires the `Admin` role) protects `ProductsController`, `UsersController`, and the order list.
-- **Temporary passwords**: the seeded admin and any user created or reset by an admin get a random password that meets the policy and is shown once. A `must_change_password` claim and a middleware restrict the user to *Change password* until they set their own.
+- **Temporary passwords**: the seeded admin starts with a well-known default (`P@ssw0rd!123`) for an easy first run. Users created or reset by an admin get a random password that meets the policy and is shown once. A `must_change_password` claim and a middleware restrict the user to *Change password* until they set their own.
 - **Safety rails in user admin**: admins can't delete, lock, or demote themselves, and the last active admin can't be removed. Role changes and locks rotate the security stamp, and cookies are re-validated every minute, so revoked access takes effect quickly.
 - Password policy: at least 12 characters with upper case, lower case, digit, and symbol. Lockout after 5 failed attempts for 15 minutes. Sign-in errors don't reveal whether an account exists.
 
@@ -241,7 +240,7 @@ With the sample file on an empty database, the result is: **97 rows → 88 creat
 | Cart storage | DB-persisted cart / client cookie | A DB cart is needed for multi-device carts, which requires user accounts. A cookie-only cart could be tampered with. A session holds only IDs and quantities and is re-validated on every request. |
 | Payment | Real sandbox (Stripe test mode) | Not required, and it would need API keys. The `IPaymentGateway` boundary makes swapping it in a single class. |
 | Auth | Duende IdentityServer / OpenIddict / Entra ID | An identity server is only worth it with several clients or APIs that need tokens. ASP.NET Core Identity with cookies covers one MVC app. |
-| Auth | Fixed admin password in `appsettings.json` | A known password in source control is a security risk. A random one-time password plus a forced change is safer. |
+| Auth | Random admin password only (no default) | Safer, but it makes the first run harder. The default password is only usable until the first sign-in forces a change, and it can be overridden or disabled via configuration. In a real deployment, set `AdminSeed__Password` from a secret store. |
 | HTTPS in Docker | HTTP only behind a TLS-terminating proxy | That's the common production setup, but the challenge runs the container directly, so the app serves HTTPS itself. |
 
 ## Known limitations / next steps
