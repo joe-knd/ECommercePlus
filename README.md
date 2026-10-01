@@ -280,5 +280,5 @@ With the sample file on an empty database, the result is: **97 rows → 88 creat
 - Single currency (USD) and no taxes or shipping costs.
 - Data Protection keys are stored unencrypted on the volume (logged as a warning). In production, protect them with a certificate or a key vault.
 
-## Use of AI
-An AI coding assistant helped write this project. As requested, code comments were removed, including the auto-generated headers in EF migrations.
+
+
