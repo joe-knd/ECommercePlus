@@ -53,7 +53,8 @@ docker compose up --build -d
 The first build takes a few minutes. Then open [https://localhost:8443](https://localhost:8443). Plain [http://localhost:8080](http://localhost:8080) redirects there.
 
 - Data is stored in the named volume `ecommerceplus-data`, so it survives `docker compose stop`, `docker compose down`, and rebuilds.
-- The container creates a **self-signed certificate** for `localhost` the first time it starts. Your browser shows a security warning once; choose *Advanced → Continue*. To avoid the warning, see [Optional: use the trusted .NET dev certificate in Docker](#optional-use-the-trusted-net-dev-certificate-in-docker).
+- Use **`localhost`** in the address. The log line `Now listening on: https://[::]:8443` shows the address the server listens on (`[::]` means "all network interfaces"). It isn't a URL you can open; the log line after it, `ECommercePlus is ready. Open https://localhost:8443`, is.
+- The container creates a **self-signed certificate** for `localhost` the first time it starts, so the browser warns *"Your connection isn't private"* once. Click **Advanced → Continue to localhost (unsafe)** in Edge/Chrome, or **Show Details → visit this website** in Safari. In Chrome, if there is no *Continue* link, click anywhere on the page and type `thisisunsafe`. To avoid the warning, see [Optional: use the trusted .NET dev certificate in Docker](#optional-use-the-trusted-net-dev-certificate-in-docker).
 
 Everyday commands:
 
@@ -73,6 +74,16 @@ Without Compose:
 docker build -f ECommercePlus/Dockerfile -t ecommerceplus .
 docker run --rm -p 8443:8443 -p 8080:8080 -v ecommerceplus-data:/app/App_Data ecommerceplus
 ```
+
+#### Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| `ERR_HTTP2_PROTOCOL_ERROR` or **400 Bad Request** | You opened `https://[::]:8443` or `http://[::]:8080` (copied from the log). `[::]` is a listen address, not a valid host. Open [https://localhost:8443](https://localhost:8443). |
+| *Your connection isn't private* / `NET::ERR_CERT_AUTHORITY_INVALID` | Expected with the self-signed certificate. Continue as described above, or use the trusted dev certificate below. |
+| *This site can't be reached* / connection refused | The container isn't running or is still starting. Check `docker compose ps` and `docker compose logs -f`, and wait for the *is ready* line. |
+| *Port is already allocated* | Another program uses 8443 or 8080. Stop it, or change the left side of the mappings in `compose.yaml` (e.g. `"9443:8443"`) and open that port instead. |
+| Admin password `P@ssw0rd!123` isn't accepted | The volume is from an older run that already has an admin. Run `docker compose down -v` and start again. |
 
 #### Optional: use the trusted .NET dev certificate in Docker
 

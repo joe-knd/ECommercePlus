@@ -118,6 +118,8 @@ app.MapControllerRoute(
         pattern: "{controller=Shop}/{action=Index}/{id?}")
     .WithStaticAssets();
 
+app.Lifetime.ApplicationStarted.Register(() => LogBrowseUrls(app));
+
 app.Run();
 
 static void ConfigureSelfSignedCertificateFallback(WebApplicationBuilder builder)
@@ -139,6 +141,20 @@ static string ResolveSqliteConnectionString(string connectionString, string cont
     builder.DataSource = Path.GetFullPath(builder.DataSource, contentRoot);
     Directory.CreateDirectory(Path.GetDirectoryName(builder.DataSource)!);
     return builder.ToString();
+}
+
+static void LogBrowseUrls(WebApplication app)
+{
+    var browseUrls = app.Urls
+        .Select(url => System.Text.RegularExpressions.Regex.Replace(url, @"://(\[::\]|0\.0\.0\.0|\+|\*)(?=[:/]|$)", "://localhost"))
+        .Select(url => Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri : null)
+        .Where(uri => uri is not null && uri.Scheme == Uri.UriSchemeHttps)
+        .Select(uri => uri!.GetLeftPart(UriPartial.Authority))
+        .Distinct()
+        .ToList();
+
+    if (browseUrls.Count > 0)
+        app.Logger.LogInformation("ECommercePlus is ready. Open {Urls} in your browser.", string.Join(", ", browseUrls));
 }
 
 public partial class Program;
