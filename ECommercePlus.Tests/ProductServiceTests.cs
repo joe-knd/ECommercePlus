@@ -114,4 +114,15 @@ public class ProductServiceTests : IDisposable
         Assert.Equal(3, page.TotalPages);
         Assert.Equal(["P-2", "P-3"], page.Items.Select(p => p.Sku).ToArray());
     }
+
+    [Fact]
+    public async Task Create_and_update_reject_script_content()
+    {
+        var created = await CreateService().CreateAsync(ProductInput.Create("<script>alert(1)</script>", "XS-9", "desc", "Tools", 1m, 1, null));
+        Assert.Equal(FailureKind.Validation, created.Failure);
+
+        var product = await _database.AddProductAsync("OK-1");
+        var updated = await CreateService().UpdateAsync(product.Id, ProductInput.Create("Fine", "OK-1", "x'); DROP TABLE Products;--", "Tools", 1m, 1, null), product.Version);
+        Assert.Equal(FailureKind.Validation, updated.Failure);
+    }
 }

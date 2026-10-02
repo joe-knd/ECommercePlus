@@ -36,13 +36,13 @@ public class ProductCsvImporterTests : IDisposable
 
         Assert.True(report.Succeeded);
         Assert.Equal(97, report.TotalRows);
-        Assert.Equal(88, report.Created);
-        Assert.Equal(4, report.Rejected);
+        Assert.Equal(86, report.Created);
+        Assert.Equal(6, report.Rejected);
         Assert.Equal(5, report.Ignored);
         Assert.Equal(report.TotalRows, report.Created + report.Updated + report.Unchanged + report.Rejected + report.Ignored);
 
         var rejectedSkus = report.Issues.Where(i => i.Severity == ImportIssueSeverity.Error).Select(i => i.Sku).ToHashSet();
-        Assert.Equal(["YM-015", "DL-007", "HD-099", "WS-001"], rejectedSkus);
+        Assert.Equal(["XS-001", "YM-015", "DL-007", "SQL-001", "HD-099", "WS-001"], rejectedSkus);
     }
 
     [Fact]
@@ -54,8 +54,8 @@ public class ProductCsvImporterTests : IDisposable
         Assert.Equal(ProductRules.DefaultCategory, (await FindAsync("GC-025"))!.Category);
         Assert.Null((await FindAsync("GK-088"))!.WeightKg);
         Assert.Equal(0m, (await FindAsync("MB-001"))!.Price);
-        Assert.Equal("<script>alert('xss')</script>", (await FindAsync("XS-001"))!.Name);
-        Assert.Equal("Robert'); DROP TABLE products;--", (await FindAsync("SQL-001"))!.Name);
+        Assert.Null(await FindAsync("XS-001"));
+        Assert.Null(await FindAsync("SQL-001"));
         Assert.Equal("Comma, In Product Name", (await FindAsync("CI-001"))!.Name);
         Assert.Equal("Quote \"Inside\" Name", (await FindAsync("QI-001"))!.Name);
         Assert.Contains("™", (await FindAsync("WB-033"))!.Description);
@@ -85,7 +85,7 @@ public class ProductCsvImporterTests : IDisposable
 
         Assert.Equal(0, second.Created);
         Assert.Equal(0, second.Updated);
-        Assert.Equal(88, second.Unchanged);
+        Assert.Equal(86, second.Unchanged);
     }
 
     [Fact]
@@ -138,5 +138,26 @@ public class ProductCsvImporterTests : IDisposable
         var report = await ImportAsync("");
 
         Assert.False(report.Succeeded);
+    }
+
+    [Fact]
+    public async Task Rows_with_script_or_sql_injection_content_are_rejected_with_a_reason()
+    {
+        var report = await ImportAsync(
+            "name,sku,description,category,price,stock\n" +
+            "<script>alert('xss')</script>,XS-001,ok,Electronics,1,1\n" +
+            "\"Robert'); DROP TABLE products;--\",SQL-001,ok,Games,1,1\n" +
+            "Lamp,LP-001,<img src=x onerror=alert(1)>,Home,1,1\n" +
+            "Mug,MG-001,ok,' OR '1'='1,1,1\n" +
+            "Safe Product,SP-001,Kids' toy for 3-5 yrs; 27\" screen — R&D edition,Toys,1,1\n");
+
+        Assert.Equal(1, report.Created);
+        Assert.Equal(4, report.Rejected);
+        var errors = report.Issues.Where(i => i.Severity == ImportIssueSeverity.Error).ToList();
+        Assert.Contains(errors, e => e.Sku == "XS-001" && e.Message.Contains("HTML or script"));
+        Assert.Contains(errors, e => e.Sku == "SQL-001" && e.Message.Contains("SQL-injection"));
+        Assert.Contains(errors, e => e.Sku == "LP-001" && e.Message.Contains("Description"));
+        Assert.Contains(errors, e => e.Sku == "MG-001" && e.Message.Contains("Category"));
+        Assert.NotNull(await FindAsync("SP-001"));
     }
 }

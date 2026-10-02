@@ -132,9 +132,6 @@ public sealed class ProductCsvImporter(AppDbContext db, ILogger<ProductCsvImport
         if (string.IsNullOrWhiteSpace(rawCategory))
             report.Add(row, sku, ImportIssueSeverity.Warning, $"Category is empty; assigned '{ProductRules.DefaultCategory}'.");
 
-        if (input.Name.IndexOfAny(['<', '>']) >= 0)
-            report.Add(row, sku, ImportIssueSeverity.Warning, "Name contains markup characters; it is stored as-is and always rendered as plain text.");
-
         if (input.Price == 0)
             report.Add(row, sku, ImportIssueSeverity.Warning, "Price is 0.00; product will be sold for free.");
 

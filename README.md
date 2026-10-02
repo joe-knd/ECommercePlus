@@ -203,7 +203,7 @@ Requires the .NET 10 SDK. From the repository root:
 dotnet test
 ```
 
-There are 61 tests: unit tests for import, search, CRUD, checkout, payments, and temporary passwords, plus integration tests that boot the full app over HTTPS with `WebApplicationFactory` (sign-in, forced password change, role checks, the HTTP→HTTPS redirect, and Secure cookies).
+There are 93 tests: unit tests for import, content safety (script and SQL-injection detection), search, CRUD, checkout, payments, and temporary passwords, plus integration tests that boot the full app over HTTPS with `WebApplicationFactory` (sign-in, forced password change, role checks, the HTTP→HTTPS redirect, and Secure cookies).
 
 ## Optional: EF Core tooling (only when you change the data model)
 
@@ -281,7 +281,7 @@ Controllers only handle HTTP. Business rules live in services that are registere
 
 ### Database: SQLite through EF Core
 - It is a **local, file-based SQL database**, as the challenge requires. Nothing extra needs to be installed or run, and it sits on a Docker volume.
-- EF Core gives **migrations**, LINQ queries that are parameterized (which prevents SQL injection, e.g. `Robert'); DROP TABLE products;--` is stored as a plain name), and a provider-agnostic model. Moving to PostgreSQL or SQL Server would mostly be a provider and connection-string change.
+- EF Core gives **migrations**, LINQ queries that are parameterized (which prevents SQL injection at the database level; on top of that, injection-like input is rejected by validation, see [Content safety](#content-safety-reject-script-and-sql-injection-content)), and a provider-agnostic model. Moving to PostgreSQL or SQL Server would mostly be a provider and connection-string change.
 - **Money handling:** SQLite has no real decimal type, and EF cannot sort or compare `decimal` columns server-side on SQLite. Prices are kept as `decimal` in C# and stored as **integer cents** through a value converter, so filtering and sorting run in the database and are exact. Weight is stored as integer grams for the same reason.
 - **Constraints:** unique index on `Sku`, a CHECK constraint so `Stock >= 0`, and indexes on name, category, and order date.
 
@@ -301,8 +301,8 @@ The sample file deliberately contains bad data. Each case is handled explicitly 
 | `free` as price | **Rejected**: the value isn't a number. Guessing `0` could give away stock by accident. |
 | `-5` stock | **Rejected**: stock can't be negative. |
 | Empty name / whitespace-only name | **Rejected**: name is required. |
-| `<script>alert('xss')</script>` name | Stored as-is and **always HTML-encoded on output** (plus a warning). Encoding on output is safer than trying to sanitize input. |
-| SQL-injection-like name | Stored as plain text. All queries are parameterized. |
+| `<script>alert('xss')</script>` name (`XS-001`) | **Rejected**: HTML/script content isn't allowed in product text. See [Content safety](#content-safety-reject-script-and-sql-injection-content). |
+| `Robert'); DROP TABLE products;--` name (`SQL-001`) | **Rejected**: SQL-injection-like pattern. |
 | Duplicate SKU in the same file (`RS-001`, `BS-021` ×3) | **The last row wins** (later rows look like updates). Earlier rows are reported as superseded. |
 | SKU that already exists in the DB | **Updated** (upsert). Identical rows count as *unchanged*, so re-importing is idempotent. |
 | Empty category | Set to `Uncategorized` (warning). |
@@ -316,7 +316,21 @@ More import rules:
 - Invalid rows are skipped. All valid rows are written in **one transaction**, so a file is never half-applied because of a database error.
 - Limits: 5 MB upload, 50,000 rows, `.csv` extension only.
 
-With the sample file on an empty database, the result is: **97 rows → 88 created, 4 rejected, 5 ignored** (2 blank rows and 3 superseded duplicates). This is covered by tests.
+With the sample file on an empty database, the result is: **97 rows → 86 created, 6 rejected, 5 ignored**. Rejected: `XS-001` (script), `SQL-001` (SQL injection), `YM-015` (`free` price), `DL-007` (negative stock), `HD-099` and `WS-001` (empty name). Ignored: 2 blank rows and 3 superseded duplicates. This is covered by tests.
+
+### Content safety: reject script and SQL-injection content
+Product name, description, and category are checked by `ContentSafety` inside `ProductRules.Validate`. The same rules apply to **CSV import and to the admin create/edit forms**, so unsafe text can't get in either way. A rejected CSV row shows the field and the reason in the import report; the form shows the error next to the field.
+
+| Rejected | Examples |
+|---|---|
+| HTML tags and comments | `<script>…`, `<img …>`, `</title>`, `<!-- -->` |
+| Script vectors | `javascript:`, `vbscript:`, `data:text/html`, event handlers like `onerror=` / `onclick=`, HTML entities like `&#60;`, URL-encoded `%3C` |
+| SQL-injection patterns | `DROP/TRUNCATE/ALTER TABLE`, `UNION SELECT`, `INSERT INTO`, `DELETE FROM`, `UPDATE … SET`, `'); …`, `; DROP …`, `' OR '1'='1`, `'--`, `;--`, `/* … */`, `EXEC(`, `xp_…` |
+| Control characters | Invisible characters other than tab and line breaks |
+
+The patterns are deliberately narrow so normal product text still works: apostrophes (`Kids' toy`), inch marks (`27" monitor; IPS`), `&`, `%`, `<`/`>` used as comparisons (`< 5 USD`), `™`, and everyday words like *select*, *update*, or *drop* in a sentence are all accepted. The test suite covers both lists.
+
+This is **defense in depth**, not the only protection: all queries stay parameterized, all output is HTML-encoded by Razor, and the Content-Security-Policy blocks inline scripts. Even if a pattern were missed, it would be stored and shown as plain text, never executed.
 
 ### Search
 - Case-insensitive substring search across name, SKU, description, and category, combined with category, min/max price, and in-stock filters, five sort options, and pagination.
@@ -368,6 +382,7 @@ With the sample file on an empty database, the result is: **97 rows → 88 creat
 | Price storage | `REAL`/`TEXT` columns | `REAL` loses precision. `TEXT` can't be compared or sorted numerically in SQLite. Integer cents is exact and queryable. |
 | CSV duplicates | First row wins / reject the whole file | The sample suggests later rows are updates, and rejecting a whole file over one duplicate is unfriendly. Every duplicate is reported so nothing happens silently. |
 | CSV `free` price | Treat as `0.00` | Too risky for a price field. Rejecting it and reporting it is the safe default. |
+| Script / SQL-like text | Store as-is and rely only on output encoding, or strip the bad parts (sanitize) | Output encoding alone is safe for this app, but the data could later reach other systems (exports, emails, reports) that don't encode. Silently stripping changes the data without anyone noticing. Rejecting with a clear reason is the most transparent. |
 | Cart storage | DB-persisted cart / client cookie | A DB cart is needed for multi-device carts, which requires user accounts. A cookie-only cart could be tampered with. A session holds only IDs and quantities and is re-validated on every request. |
 | Payment | Real sandbox (Stripe test mode) | Not required, and it would need API keys. The `IPaymentGateway` boundary makes swapping it in a single class. |
 | Auth | Duende IdentityServer / OpenIddict / Entra ID | An identity server is only worth it with several clients or APIs that need tokens. ASP.NET Core Identity with cookies covers one MVC app. |

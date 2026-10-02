@@ -188,10 +188,14 @@ public partial class WebAppTests : IClassFixture<WebAppTests.Factory>
     }
 
     [Fact]
-    public async Task Seeded_catalog_is_searchable_and_html_encoded()
+    public async Task Seeded_catalog_excludes_unsafe_rows_and_search_input_is_html_encoded()
     {
-        var html = await _factory.CreateHttpsClient().GetStringAsync("/Shop?q=xss");
+        var client = _factory.CreateHttpsClient();
 
+        Assert.Contains("No products", await client.GetStringAsync("/Shop?q=XS-001"), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("No products", await client.GetStringAsync("/Shop?q=SQL-001"), StringComparison.OrdinalIgnoreCase);
+
+        var html = await client.GetStringAsync("/Shop?q=" + Uri.EscapeDataString("<script>alert('xss')</script>"));
         Assert.Contains("&lt;script&gt;", html);
         Assert.DoesNotContain("<script>alert", html);
     }

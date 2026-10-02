@@ -56,6 +56,10 @@ public static partial class ProductRules
         if (input.Category.Length > CategoryMaxLength)
             errors.Add(new(nameof(ProductInput.Category), $"Category must be at most {CategoryMaxLength} characters."));
 
+        AddUnsafeContentError(errors, nameof(ProductInput.Name), "Name", input.Name);
+        AddUnsafeContentError(errors, nameof(ProductInput.Description), "Description", input.Description);
+        AddUnsafeContentError(errors, nameof(ProductInput.Category), "Category", input.Category);
+
         if (input.Price < 0 || input.Price > MaxPrice)
             errors.Add(new(nameof(ProductInput.Price), $"Price must be between 0 and {MaxPrice:N0}."));
         else if (decimal.Round(input.Price, PriceDecimals) != input.Price)
@@ -73,5 +77,11 @@ public static partial class ProductRules
         }
 
         return errors;
+    }
+
+    private static void AddUnsafeContentError(List<ValidationError> errors, string field, string label, string value)
+    {
+        if (ContentSafety.Check(value) is { } problem)
+            errors.Add(new(field, $"{label} {problem}."));
     }
 }
