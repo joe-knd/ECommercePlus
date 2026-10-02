@@ -1,5 +1,25 @@
 # ECommercePlus
 
+## Contents
+
+| Section | What you'll find |
+|---|---|
+| [Overview](#overview) | Features and sample CSV |
+| [How to run it](#how-to-run-it-pick-one-option) | Choose Docker or the .NET SDK; get the code |
+| [Option 1: Docker](#option-1-run-with-docker) | Requirements, start, stop, reset, certificates, troubleshooting |
+| [Option 2: .NET SDK](#option-2-run-locally-with-the-net-sdk-no-docker) | Requirements, start, stop, reset, troubleshooting |
+| [Using the app](#using-the-app) | Shopping, checkout, and admin features |
+| [Admin sign-in](#signing-in-as-the-admin-both-options) | Default credentials and first-login steps |
+| [Configuration](#configuration) | Override the seeded admin account |
+| [Running the tests](#running-the-tests) | Developer test command |
+| [EF Core tooling](#optional-ef-core-tooling-only-when-you-change-the-data-model) | Create migrations when changing the data model |
+| [Architecture](#architecture) | Current structure and responsibility boundaries |
+| [Decisions and rationale](#decisions-and-rationale) | Stack, validation, UI, checkout, authentication, security |
+| [Alternatives considered](#alternatives-considered) | Tradeoffs, including a separate UI and REST API |
+| [Known limitations / next steps](#known-limitations--next-steps) | What would change for a larger deployment |
+
+## Overview
+
 A small e-commerce application built with **ASP.NET Core MVC (.NET 10)**, **EF Core**, and **SQLite**. It covers:
 
 - **Product CRUD** (admin UI), with server-side validation and optimistic concurrency.
@@ -73,7 +93,7 @@ Open **[https://localhost:8443](https://localhost:8443)**. Plain [http://localho
 - The container creates a **self-signed certificate** for `localhost` the first time it starts, so the browser warns *"Your connection isn't private"* once. Click **Advanced → Continue to localhost (unsafe)** in Edge/Chrome, or **Show Details → visit this website** in Safari. In Chrome, if there is no *Continue* link, click anywhere on the page and type `thisisunsafe`. To avoid the warning, see [1.7](#17-optional-use-the-trusted-net-dev-certificate-in-docker).
 - Use **`localhost`** in the address. The log line `Now listening on: https://[::]:8443` shows what the server listens on (`[::]` means "all network interfaces"). It isn't a URL you can open.
 
-Then [sign in as the admin](#signing-in-as-the-admin-both-options).
+Continue with [Using the app](#using-the-app) to shop or sign in as the admin.
 
 ### 1.4 Stop, restart, and reset
 
@@ -164,7 +184,7 @@ The app is ready when the console shows `ECommercePlus is ready. Open https://lo
 
 Open **[https://localhost:7268](https://localhost:7268)**. Plain [http://localhost:5213](http://localhost:5213) redirects there.
 
-Then [sign in as the admin](#signing-in-as-the-admin-both-options).
+Continue with [Using the app](#using-the-app) to shop or sign in as the admin.
 
 ### 2.5 Stop and reset
 
@@ -185,7 +205,18 @@ Then [sign in as the admin](#signing-in-as-the-admin-both-options).
 
 ---
 
-## Signing in as the admin (both options)
+## Using the app
+
+Once you've opened the URL for your chosen run option, follow the steps below. **No account is needed to shop.** Sign in only to manage products, imports, orders, or users.
+
+### Shopping and checkout
+
+1. Open **Shop**. Search or filter the catalog, open a product, and add it to your cart.
+2. Open **Cart** to adjust quantities or remove items, then proceed to **Checkout**.
+3. Enter customer and shipping details. For an approved fake payment, use `4242 4242 4242 4242`, any future expiry date, and any 3-4 digit CVV. No real payment is made.
+4. Submit the order to see the receipt. More fake-payment outcomes are listed below.
+
+### Signing in as the admin (both options)
 
 On first start, the app creates the `Admin` role and this account:
 
@@ -193,7 +224,50 @@ On first start, the app creates the `Admin` role and this account:
 |---|---|
 | `admin@ecommerceplus.local` | `P@ssw0rd!123` |
 
-You must **change the password at first sign-in**. The default is set in `appsettings.json` (`AdminSeed:Password`) and can be overridden with the `AdminSeed__Password` / `AdminSeed__Email` environment variables. If you set `AdminSeed__Password` to an empty value, a random password is generated instead and written to `App_Data/initial-admin-password.txt` (the file is deleted after the first password change).
+1. Click **Sign in** in the navigation bar, or open `/Account/Login` on your running app.
+2. Enter the credentials above.
+3. **Change the password at first sign-in** when prompted.
+4. Use the **Admin** menu to manage products, import CSV files, review orders, or manage users.
+
+These defaults apply to a fresh database; they do not reset an existing account. For different initial credentials or a randomly generated password, see [Configuration](#configuration). If the default password isn't accepted, see troubleshooting for your chosen run option.
+
+### Pages and access
+
+| Area | URL | What it does |
+|---|---|---|
+| Shop | `/Shop` | Browse and search the catalog, view details, add to cart |
+| Cart | `/Cart` | Change quantities, remove items, go to checkout |
+| Checkout | `/Checkout` | Customer and shipping details plus a fake card payment |
+| Order receipt | `/Orders/Details/{number}` | Shown after checkout. Visible only to the browser session that placed the order, or to an admin |
+| Sign in / Change password | `/Account/Login`, `/Account/ChangePassword` | Cookie sign-in with ASP.NET Core Identity |
+| Admin → Manage products | `/Products` | List, search, create, edit, and delete products *(Admin role)* |
+| Admin → Import CSV | `/Products/Import` | Upload a CSV and see the import report *(Admin role)* |
+| Admin → Orders | `/Orders` | All recent orders *(Admin role)* |
+| Admin → Users | `/Users` | Create users (with a generated temporary password), reset passwords, grant or revoke Admin, lock or unlock, delete *(Admin role)* |
+| Health | `/health` | Liveness and database check |
+
+Shopping (search, cart, checkout) doesn't require an account. The *Admin* menu appears only for users in the `Admin` role, and any admin URL returns *Access denied* for other signed-in users or redirects anonymous users to sign in.
+
+### Fake payment test cards
+
+Use any future expiry date and any 3-4 digit CVV:
+
+| Card number | Result |
+|---|---|
+| `4242 4242 4242 4242` (or any Luhn-valid number) | Approved |
+| `4000 0000 0000 0002` | Declined |
+| `4000 0000 0000 9995` | Insufficient funds |
+| Number that fails the Luhn check, or an expired date | Declined (validation) |
+
+---
+
+## Configuration
+
+The initial admin credentials are set in `ECommercePlus/appsettings.json` under `AdminSeed`. Override `AdminSeed__Email` and `AdminSeed__Password` through environment variables **before the first startup with a fresh database**. Changing these settings does not reset an existing user's password; use the account's password-change flow or the Users admin section instead.
+
+If you set `AdminSeed__Password` to an empty value, a random password is generated and written to `App_Data/initial-admin-password.txt` (the file is deleted after the first password change). With Docker, this path is inside the container's `/app/App_Data` volume; with the .NET SDK, it is under `ECommercePlus/App_Data`.
+
+The default temporary password is for local evaluation. For a real deployment, provide it through a secret store rather than keeping a known default.
 
 ## Running the tests
 
@@ -218,36 +292,6 @@ The next app start applies it automatically.
 
 ---
 
----
-
-## Using the app
-
-| Area | URL | What it does |
-|---|---|---|
-| Shop | `/Shop` | Browse and search the catalog, view details, add to cart |
-| Cart | `/Cart` | Change quantities, remove items, go to checkout |
-| Checkout | `/Checkout` | Customer and shipping details plus a fake card payment |
-| Order receipt | `/Orders/Details/{number}` | Shown after checkout. Visible only to the browser session that placed the order, or to an admin |
-| Sign in / Change password | `/Account/Login`, `/Account/ChangePassword` | Cookie sign-in with ASP.NET Core Identity |
-| Admin → Manage products | `/Products` | List, search, create, edit, and delete products *(Admin role)* |
-| Admin → Import CSV | `/Products/Import` | Upload a CSV and see the import report *(Admin role)* |
-| Admin → Orders | `/Orders` | All recent orders *(Admin role)* |
-| Admin → Users | `/Users` | Create users (with a generated temporary password), reset passwords, grant or revoke Admin, lock or unlock, delete *(Admin role)* |
-| Health | `/health` | Liveness and database check |
-
-Shopping (search, cart, checkout) doesn't require an account. The *Admin* menu appears only for users in the `Admin` role, and any admin URL returns *Access denied* for other signed-in users or redirects anonymous users to sign in.
-
-**Fake payment test cards** (any future expiry date and any 3–4 digit CVV):
-
-| Card number | Result |
-|---|---|
-| `4242 4242 4242 4242` (or any Luhn-valid number) | Approved |
-| `4000 0000 0000 0002` | Declined |
-| `4000 0000 0000 9995` | Insufficient funds |
-| Number that fails the Luhn check, or an expired date | Declined (validation) |
-
----
-
 ## Architecture
 
 ```
@@ -269,7 +313,11 @@ ECommercePlus/
 ECommercePlus.Tests/   xUnit tests (SQLite in-memory + WebApplicationFactory)
 ```
 
-Controllers only handle HTTP. Business rules live in services that are registered as interfaces, so the storage, cart, and payment provider can each be replaced without touching the UI.
+This is a **single-project MVC application**, not a separate frontend plus REST API. Razor views render the UI; MVC controller actions receive form submissions, validate input, call services, and select a view or redirect. Product and checkout logic live in services, while persistence uses EF Core. Sharing a deployable application does not itself violate SOLID: separation of responsibilities is about dependencies and behavior, not just the number of projects.
+
+The current boundaries are useful but incomplete. Application services such as `ProductService`, `ProductCsvImporter`, and `CheckoutService` depend directly on `AppDbContext`, and user/account controllers use Identity managers directly. Folders group responsibilities, but separate assemblies do not enforce their dependencies. Cart and payment interfaces provide replaceable implementations; persistence is not fully isolated behind application-owned abstractions. This is a pragmatic challenge-sized design, not a claim of full Clean Architecture or strict SOLID compliance.
+
+For a larger application, the [layered UI/API alternative](#separate-ui-rest-api-and-enforced-layers) below describes how to separate presentation, use cases, domain rules, and infrastructure.
 
 ---
 
@@ -382,7 +430,8 @@ This is **defense in depth**, not the only protection: all queries stay paramete
 
 | Topic | Alternative | Why not (for this scope) |
 |---|---|---|
-| UI | React/Angular SPA + REST API | Twice the build tooling and deployment work, and the CRUD/search/checkout requirements don't need it. The service layer could sit behind a REST API later without changes. |
+| UI | React/Angular SPA + REST API | Adds frontend build tooling, API contracts, and deployment work beyond this challenge's needs. Existing business services could be reused, but API DTOs, endpoint validation, authentication, and error mapping would still need to be designed. |
+| Architecture | Separate UI, REST API, and Domain/Application/Infrastructure projects | Stronger, enforceable responsibility boundaries and independent clients/releases, but more projects and integration work. Deferred for this scope; see the [layered alternative](#separate-ui-rest-api-and-enforced-layers) below. |
 | UI | Blazor Server | Needs a persistent SignalR connection per user. MVC is simpler to scale and easier to test with plain HTTP. |
 | DB | PostgreSQL / SQL Server in docker-compose | Better for concurrent writes and full-text search, but adds a second container. The requirement asked for a *local* DB, and EF Core keeps switching cheap. |
 | DB | NoSQL (LiteDB/MongoDB) | Orders, stock reservation, and unique SKUs benefit from relational constraints and transactions. |
@@ -398,6 +447,24 @@ This is **defense in depth**, not the only protection: all queries stay paramete
 | Auth | Random admin password only (no default) | Safer, but it makes the first run harder. The default password is only usable until the first sign-in forces a change, and it can be overridden or disabled via configuration. In a real deployment, set `AdminSeed__Password` from a secret store. |
 | HTTPS in Docker | HTTP only behind a TLS-terminating proxy | That's the common production setup, but the challenge runs the container directly, so the app serves HTTPS itself. |
 
+### Separate UI, REST API, and enforced layers
+
+An alternative reviewed for a larger application is to separate the UI from backend HTTP actions and enforce dependency boundaries through distinct projects:
+
+| Layer | Responsibility | Dependency direction |
+|---|---|---|
+| Domain | Entities, invariants, and domain rules | No UI, HTTP, EF Core, or infrastructure dependencies |
+| Application | Use cases such as create product, import catalog, and place order; defines persistence and payment abstractions | Depends on Domain |
+| Infrastructure | EF Core persistence, Identity integration, payment adapters, and other external implementations | Implements Application abstractions; depends on Application and Domain |
+| REST API | Authenticated endpoints, request/response DTOs, input validation, and HTTP error mapping; delegates to use cases | Depends on Application; wires Infrastructure at the composition root |
+| UI | Pages/components, display models, client-side feedback, and API calls; no direct database access or business-rule implementation | Uses the API contract, not Infrastructure |
+
+For example, an admin form would call `POST /api/products`; the API would map the request to a create-product use case, and an infrastructure adapter would persist the result. The server would remain authoritative for validation and authorization even when the UI validates locally. A server-rendered MVC UI could also be retained as a separate presentation project; a SPA is not required to obtain stronger layering.
+
+This supports **single responsibility** by separating presentation, HTTP transport, use cases, and persistence; **dependency inversion** by making infrastructure implement application-owned interfaces; and **interface segregation** through focused contracts. It does not automatically guarantee SOLID: interface design, substitutable implementations, and business-rule placement still need care.
+
+The tradeoff is more API/versioning, authentication, error-handling, and deployment work. A browser UI hosted on another origin would also need deliberate CORS and cookie/CSRF or token handling. Layers can initially remain in one backend deployment; microservices are not required. This alternative is **documented, not implemented** in the current repository.
+
 ## Known limitations / next steps
 - Customers check out as guests, so there is no "my orders" page across sessions. Next step: optional customer accounts with orders linked to the user.
 - No email confirmation or self-service password reset (admins reset passwords). Next step: an `IEmailSender` and Identity's token providers.
@@ -406,6 +473,5 @@ This is **defense in depth**, not the only protection: all queries stay paramete
 - Payment is charged inside the stock-reservation transaction, which is acceptable with an in-process fake. With a real provider, use authorize/capture plus an outbox or saga so the database lock isn't held during a network call.
 - Single currency (USD) and no taxes or shipping costs.
 - Data Protection keys are stored unencrypted on the volume (logged as a warning). In production, protect them with a certificate or a key vault.
-
 
 
