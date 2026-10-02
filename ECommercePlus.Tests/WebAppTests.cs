@@ -130,6 +130,80 @@ public partial class WebAppTests : IClassFixture<WebAppTests.Factory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("Name", "<script>alert('xss')</script>", "HTML or script")]
+    [InlineData("Name", "Robert'); DROP TABLE products;--", "SQL-injection")]
+    [InlineData("Description", "<img src=x onerror=alert(1)>", "HTML or script")]
+    [InlineData("Category", "' OR '1'='1", "SQL-injection")]
+    public async Task Admin_create_form_refuses_to_save_unsafe_content(string field, string value, string expectedMessage)
+    {
+        var client = await CreateUserClientAsync(isAdmin: true);
+        var sku = $"UNSAFE-{Guid.NewGuid():N}"[..20].ToUpperInvariant();
+        var fields = new Dictionary<string, string>
+        {
+            ["Name"] = "Safe name",
+            ["Sku"] = sku,
+            ["Description"] = "Safe description",
+            ["Category"] = "Tools",
+            ["Price"] = "9.99",
+            ["Stock"] = "5",
+            [field] = value
+        };
+
+        var response = await PostFormAsync(client, "/Products/Create", "/Products/Create", fields);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(expectedMessage, await response.Content.ReadAsStringAsync());
+        var search = await client.GetStringAsync($"/Products?q={sku}");
+        Assert.Contains("No products found", search);
+    }
+
+    [Fact]
+    public async Task Admin_edit_form_refuses_to_save_unsafe_content()
+    {
+        var client = await CreateUserClientAsync(isAdmin: true);
+        int id;
+        string originalName;
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ECommercePlus.Data.AppDbContext>();
+            var product = db.Products.OrderBy(p => p.Id).First();
+            id = product.Id;
+            originalName = product.Name;
+        }
+
+        var page = await client.GetStringAsync($"/Products/Edit/{id}");
+        string Value(string name) => System.Net.WebUtility.HtmlDecode(Regex.Match(page, $"name=\"{name}\" value=\"([^\"]*)\"").Groups[1].Value);
+        var response = await PostFormAsync(client, $"/Products/Edit/{id}", $"/Products/Edit/{id}", new()
+        {
+            ["Version"] = Value("Version"),
+            ["Name"] = "<script>alert(1)</script>",
+            ["Sku"] = Value("Sku"),
+            ["Description"] = "ok",
+            ["Category"] = "Tools",
+            ["Price"] = "1.00",
+            ["Stock"] = "1"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("HTML or script", await response.Content.ReadAsStringAsync());
+        await using var verify = _factory.Services.CreateAsyncScope();
+        var stored = await verify.ServiceProvider.GetRequiredService<ECommercePlus.Data.AppDbContext>().Products.FindAsync(id);
+        Assert.Equal(originalName, stored!.Name);
+    }
+
+    [Fact]
+    public async Task Product_form_emits_client_side_safe_text_validation()
+    {
+        var client = await CreateUserClientAsync(isAdmin: true);
+
+        var html = await client.GetStringAsync("/Products/Create");
+
+        Assert.Contains("data-val-safetext-markup=", html);
+        Assert.Contains("data-val-safetext-sql=", html);
+        Assert.Contains("safe-text-validation.js", html);
+    }
+
     [Fact]
     public async Task Seeded_admin_must_change_temporary_password_before_using_admin_area()
     {

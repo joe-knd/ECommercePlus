@@ -9,10 +9,11 @@
     <link rel="stylesheet" href="~/ECommercePlus.styles.css" asp-append-version="true"/>
 </head>
 <body>
-<header>
-    <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
+<header class="mb-4">
+    <div class="promo-strip text-center py-1 px-2">🚚 Free shipping on every order · 🔒 Secure HTTPS checkout · 💳 Test card 4242 4242 4242 4242</div>
+    <nav class="navbar navbar-expand-md navbar-dark site-navbar py-3">
         <div class="container">
-            <a class="navbar-brand fw-semibold" asp-controller="Shop" asp-action="Index">ECommercePlus</a>
+            <a class="navbar-brand d-flex align-items-center" asp-controller="Shop" asp-action="Index"><span class="brand-mark">E</span>ECommerce<span class="brand-plus">Plus</span></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
                     aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -25,7 +26,7 @@
                     @if (User.IsInRole(Roles.Admin))
                     {
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Admin</a>
+                            <a class="nav-link dropdown-toggle admin-pill me-md-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">⚙️ Admin</a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" asp-controller="Products" asp-action="Index">Manage products</a></li>
                                 <li><a class="dropdown-item" asp-controller="Products" asp-action="Create">New product</a></li>
@@ -38,7 +39,7 @@
                     }
                     <li class="nav-item">
                         <a class="nav-link" asp-controller="Cart" asp-action="Index">
-                            Cart <span class="badge rounded-pill bg-warning text-dark" data-testid="cart-count">@await Component.InvokeAsync("CartCount")</span>
+                            🛒 Cart <span class="badge rounded-pill cart-badge" data-testid="cart-count">@await Component.InvokeAsync("CartCount")</span>
                         </a>
                     </li>
                     @if (User.Identity?.IsAuthenticated == true)
@@ -64,15 +65,18 @@
         </div>
     </nav>
 </header>
-<div class="container">
+<div class="container flex-grow-1">
     <main role="main" class="pb-3">
         <partial name="_Flash"/>
         @RenderBody()
     </main>
 </div>
 
-<footer class="border-top footer text-muted">
-    <div class="container">&copy; @DateTime.UtcNow.Year - ECommercePlus</div>
+<footer class="site-footer mt-5 py-4">
+    <div class="container d-flex flex-column flex-md-row justify-content-between gap-2">
+        <div><span class="fw-bold text-white">ECommerce<span class="brand-plus">Plus</span></span> &copy; @DateTime.UtcNow.Year</div>
+        <div>Demo store · payments are simulated · <a asp-controller="Shop" asp-action="Index">Browse the catalog</a></div>
+    </div>
 </footer>
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

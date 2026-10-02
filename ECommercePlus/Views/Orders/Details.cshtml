@@ -2,8 +2,13 @@
 @{
     ViewData["Title"] = $"Order {Model.OrderNumber}";
 }
-<h1 class="h3 mb-1">Order @Model.OrderNumber</h1>
-<p class="text-muted">Placed @Model.CreatedAtUtc.ToString("u") &middot; <span class="badge bg-success">@Model.Status</span></p>
+<div class="page-banner page-banner-checkout mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <p class="page-banner-eyebrow mb-1">✅ Thank you</p>
+        <h1 class="h3 mb-1">Order @Model.OrderNumber</h1>
+        <p class="mb-0 opacity-75">Placed @Model.CreatedAtUtc.ToString("u") &middot; <span class="badge bg-light text-success">@Model.Status</span></p>
+    </div>
+</div>
 <div class="row g-4">
     <div class="col-lg-8">
         <table class="table align-middle">

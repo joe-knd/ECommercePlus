@@ -2,15 +2,18 @@
 @{
     ViewData["Title"] = Model.Name;
 }
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">@Model.Name</h1>
-    <div class="d-flex gap-2">
-        <a asp-controller="Shop" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">View in shop</a>
-        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Edit</a>
-        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger">Delete</a>
+<div class="page-banner page-banner-admin mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <p class="page-banner-eyebrow mb-1">Admin · Product</p>
+        <h1 class="h3 mb-1">@Model.Name</h1>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a asp-controller="Shop" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-light">View in shop</a>
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-accent">Edit</a>
+        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Delete</a>
     </div>
 </div>
-<div class="card card-body">
+<div class="card card-body shadow-sm">
     <dl class="row mb-0">
         <dt class="col-sm-3">SKU</dt>
         <dd class="col-sm-9"><code>@Model.Sku</code></dd>

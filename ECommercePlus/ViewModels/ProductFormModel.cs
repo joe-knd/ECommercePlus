@@ -9,17 +9,17 @@ public sealed class ProductFormModel
 
     public Guid Version { get; set; }
 
-    [Required, StringLength(ProductRules.NameMaxLength)]
+    [Required, StringLength(ProductRules.NameMaxLength), SafeText]
     public string Name { get; set; } = string.Empty;
 
     [Required, StringLength(ProductRules.SkuMaxLength), Display(Name = "SKU")]
     [RegularExpression("^[A-Za-z0-9][A-Za-z0-9_-]*$", ErrorMessage = "SKU may only contain letters, digits, '-' and '_'.")]
     public string Sku { get; set; } = string.Empty;
 
-    [StringLength(ProductRules.DescriptionMaxLength)]
+    [StringLength(ProductRules.DescriptionMaxLength), SafeText]
     public string? Description { get; set; }
 
-    [StringLength(ProductRules.CategoryMaxLength)]
+    [StringLength(ProductRules.CategoryMaxLength), SafeText]
     public string? Category { get; set; }
 
     [Required, Range(typeof(decimal), "0", "1000000"), DataType(DataType.Currency)]

@@ -203,7 +203,7 @@ Requires the .NET 10 SDK. From the repository root:
 dotnet test
 ```
 
-There are 93 tests: unit tests for import, content safety (script and SQL-injection detection), search, CRUD, checkout, payments, and temporary passwords, plus integration tests that boot the full app over HTTPS with `WebApplicationFactory` (sign-in, forced password change, role checks, the HTTP→HTTPS redirect, and Secure cookies).
+There are 99 tests: unit tests for import, content safety (script and SQL-injection detection), search, CRUD, checkout, payments, and temporary passwords, plus integration tests that boot the full app over HTTPS with `WebApplicationFactory` (sign-in, forced password change, role checks, the HTTP→HTTPS redirect, Secure cookies, and admin forms refusing to save unsafe content).
 
 ## Optional: EF Core tooling (only when you change the data model)
 
@@ -263,7 +263,7 @@ ECommercePlus/
 ├── Identity/          AppUser, roles/policies, admin seeding, temporary passwords, must-change-password middleware
 ├── Controllers/       Thin MVC controllers (Shop, Products, Cart, Checkout, Orders, Account, Users, Home/Error)
 ├── ViewModels/        Form/view models (DataAnnotations for client-side validation)
-├── Views/             Razor views (Bootstrap 5)
+├── Views/             Razor views (Bootstrap 5 with a custom theme in wwwroot/css/site.css)
 ├── Infrastructure/    Security headers middleware, self-signed certificate fallback, session order history, money formatting
 └── SeedData/          The sample CSV
 ECommercePlus.Tests/   xUnit tests (SQLite in-memory + WebApplicationFactory)
@@ -319,7 +319,10 @@ More import rules:
 With the sample file on an empty database, the result is: **97 rows → 86 created, 6 rejected, 5 ignored**. Rejected: `XS-001` (script), `SQL-001` (SQL injection), `YM-015` (`free` price), `DL-007` (negative stock), `HD-099` and `WS-001` (empty name). Ignored: 2 blank rows and 3 superseded duplicates. This is covered by tests.
 
 ### Content safety: reject script and SQL-injection content
-Product name, description, and category are checked by `ContentSafety` inside `ProductRules.Validate`. The same rules apply to **CSV import and to the admin create/edit forms**, so unsafe text can't get in either way. A rejected CSV row shows the field and the reason in the import report; the form shows the error next to the field.
+Product name, description, and category are checked by `ContentSafety` inside `ProductRules.Validate`. The same rules apply to **CSV import and to the admin create/edit forms**, so unsafe text can't get in either way:
+
+- **CSV import:** the row is not imported. The import report shows the row, SKU, field and reason, plus a banner counting rows rejected for unsafe content. The import page lists the rules before you upload.
+- **Create/edit forms:** the product is **not saved**. A `[SafeText]` attribute validates **in the browser** as you type (jQuery unobtrusive validation) and again **on the server**, so it can't be bypassed by disabling JavaScript. The browser uses the exact same regular expressions, sent from the server in `data-val-*` attributes, so there's one source of truth.
 
 | Rejected | Examples |
 |---|---|
@@ -331,6 +334,12 @@ Product name, description, and category are checked by `ContentSafety` inside `P
 The patterns are deliberately narrow so normal product text still works: apostrophes (`Kids' toy`), inch marks (`27" monitor; IPS`), `&`, `%`, `<`/`>` used as comparisons (`< 5 USD`), `™`, and everyday words like *select*, *update*, or *drop* in a sentence are all accepted. The test suite covers both lists.
 
 This is **defense in depth**, not the only protection: all queries stay parameterized, all output is HTML-encoded by Razor, and the Content-Security-Policy blocks inline scripts. Even if a pattern were missed, it would be stored and shown as plain text, never executed.
+
+### UI theme
+- Bootstrap 5.3 restyled through CSS variables in `wwwroot/css/site.css`: an indigo/violet brand palette with an orange accent for prices and calls to action. No extra CSS framework, web fonts, or CDN, so it works offline and with the strict Content-Security-Policy (no inline styles).
+- **Shop:** a hero banner with live catalog stats, clickable category chips, and product cards with a category-colored header and icon, stock badges ("🔥 Only 5 left"), and a highlighted price.
+- **Admin and checkout pages:** consistent page banners, white table and stat cards, and a sticky footer.
+- Category colors come from a stable hash of the category name (`CategoryStyle`), so new categories get a color automatically without code changes. Icons are emoji, so there are no image files to manage.
 
 ### Search
 - Case-insensitive substring search across name, SKU, description, and category, combined with category, min/max price, and in-stock filters, five sort options, and pagination.

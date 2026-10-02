@@ -2,8 +2,14 @@
 @{
     ViewData["Title"] = "New product";
 }
-<h1 class="h3 mb-3">New product</h1>
-<form asp-action="Create" method="post" class="card card-body">
+<div class="page-banner page-banner-admin mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <p class="page-banner-eyebrow mb-1">Admin · Catalog</p>
+        <h1 class="h3 mb-1">New product</h1>
+        <p class="mb-0 opacity-75">Name, description and category are checked for HTML/script and SQL-injection content.</p>
+    </div>
+</div>
+<form asp-action="Create" method="post" class="card card-body shadow-sm">
     <partial name="_Form" model="Model"/>
     <div class="mt-4 d-flex gap-2">
         <button type="submit" class="btn btn-primary">Create</button>

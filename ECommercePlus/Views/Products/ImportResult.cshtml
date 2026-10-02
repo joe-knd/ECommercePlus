@@ -3,7 +3,12 @@
 @{
     ViewData["Title"] = "Import result";
 }
-<h1 class="h3 mb-3">Import result</h1>
+<div class="page-banner page-banner-admin mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <p class="page-banner-eyebrow mb-1">Admin · Catalog</p>
+        <h1 class="h3 mb-1">Import result</h1>
+    </div>
+</div>
 @if (!Model.Succeeded)
 {
     <div class="alert alert-danger">@Model.FatalError</div>
@@ -11,18 +16,29 @@
 else
 {
     <div class="row row-cols-2 row-cols-md-6 g-2 mb-4 text-center">
-        <div class="col"><div class="card card-body"><div class="fs-4">@Model.TotalRows</div><div class="small text-muted">Rows read</div></div></div>
-        <div class="col"><div class="card card-body border-success"><div class="fs-4 text-success">@Model.Created</div><div class="small text-muted">Created</div></div></div>
-        <div class="col"><div class="card card-body border-primary"><div class="fs-4 text-primary">@Model.Updated</div><div class="small text-muted">Updated</div></div></div>
-        <div class="col"><div class="card card-body"><div class="fs-4">@Model.Unchanged</div><div class="small text-muted">Unchanged</div></div></div>
-        <div class="col"><div class="card card-body border-danger"><div class="fs-4 text-danger">@Model.Rejected</div><div class="small text-muted">Rejected</div></div></div>
-        <div class="col"><div class="card card-body"><div class="fs-4">@Model.Ignored</div><div class="small text-muted">Ignored</div></div></div>
+        <div class="col"><div class="card card-body shadow-sm stat-card"><div class="fs-4 fw-bold">@Model.TotalRows</div><div class="small text-muted">Rows read</div></div></div>
+        <div class="col"><div class="card card-body shadow-sm stat-card stat-success"><div class="fs-4 fw-bold text-success">@Model.Created</div><div class="small text-muted">Created</div></div></div>
+        <div class="col"><div class="card card-body shadow-sm stat-card stat-primary"><div class="fs-4 fw-bold text-primary">@Model.Updated</div><div class="small text-muted">Updated</div></div></div>
+        <div class="col"><div class="card card-body shadow-sm stat-card"><div class="fs-4 fw-bold">@Model.Unchanged</div><div class="small text-muted">Unchanged</div></div></div>
+        <div class="col"><div class="card card-body shadow-sm stat-card stat-danger"><div class="fs-4 fw-bold text-danger">@Model.Rejected</div><div class="small text-muted">Rejected</div></div></div>
+        <div class="col"><div class="card card-body shadow-sm stat-card"><div class="fs-4 fw-bold">@Model.Ignored</div><div class="small text-muted">Ignored</div></div></div>
     </div>
 
+    var unsafeRows = Model.Issues.Count(i => i.Severity == ImportIssueSeverity.Error && i.Message.Contains("not allowed", StringComparison.Ordinal));
+    @if (unsafeRows > 0)
+    {
+        <div class="alert alert-danger d-flex gap-2 align-items-start shadow-sm" role="alert">
+            <span aria-hidden="true">🛡️</span>
+            <div>
+                <strong>@unsafeRows row(s) were rejected for unsafe content</strong> (HTML/script or SQL-injection-like text in name, description or category).
+                They were not imported. Fix the values in the file and import it again; see the rules on the <a asp-action="Import" class="alert-link">import page</a>.
+            </div>
+        </div>
+    }
     @if (Model.Issues.Count > 0)
     {
-        <div class="table-responsive">
-            <table class="table table-sm align-middle">
+        <div class="table-responsive table-card shadow-sm mb-4">
+            <table class="table table-sm align-middle mb-0">
                 <thead>
                 <tr><th>Row</th><th>SKU</th><th>Severity</th><th>Message</th></tr>
                 </thead>

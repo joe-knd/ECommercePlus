@@ -2,7 +2,13 @@
 @{
     ViewData["Title"] = "Cart";
 }
-<h1 class="h3 mb-3">Your cart</h1>
+<div class="page-banner  mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <p class="page-banner-eyebrow mb-1">Shopping</p>
+        <h1 class="h3 mb-1">Your cart</h1>
+        <p class="mb-0 opacity-75">Review quantities, then continue to secure checkout.</p>
+    </div>
+</div>
 @if (Model.IsEmpty)
 {
     <div class="alert alert-info">Your cart is empty. <a asp-controller="Shop" asp-action="Index">Continue shopping</a>.</div>

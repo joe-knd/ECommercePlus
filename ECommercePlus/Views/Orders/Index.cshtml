@@ -2,7 +2,12 @@
 @{
     ViewData["Title"] = "Orders";
 }
-<h1 class="h3 mb-3">Recent orders</h1>
+<div class="page-banner page-banner-admin mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <p class="page-banner-eyebrow mb-1">Admin · Sales</p>
+        <h1 class="h3 mb-1">Recent orders</h1>
+    </div>
+</div>
 @if (Model.Count == 0)
 {
     <div class="alert alert-info">No orders yet. <a asp-controller="Shop" asp-action="Index">Start shopping</a>.</div>

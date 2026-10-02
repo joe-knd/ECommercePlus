@@ -1,20 +1,26 @@
 @{
     ViewData["Title"] = "Import products";
 }
-<h1 class="h3 mb-3">Import products from CSV</h1>
+<div class="page-banner page-banner-admin mb-4">
+    <div>
+        <p class="page-banner-eyebrow mb-1">Admin · Catalog</p>
+        <h1 class="h3 mb-1">Import products from CSV</h1>
+        <p class="mb-0 opacity-75">Upload a file to create or update products in bulk. Every row is validated and reported.</p>
+    </div>
+</div>
 <div class="row g-4">
-    <div class="col-lg-6">
-        <form asp-action="Import" method="post" enctype="multipart/form-data" class="card card-body">
+    <div class="col-lg-5">
+        <form asp-action="Import" method="post" enctype="multipart/form-data" class="card card-body shadow-sm">
+            <h2 class="h6 section-title">Upload</h2>
             <div asp-validation-summary="All" class="text-danger small"></div>
             <label for="file" class="form-label">CSV file (max 5 MB)</label>
             <input type="file" id="file" name="file" accept=".csv,text/csv" class="form-control mb-3" required/>
             <button type="submit" class="btn btn-primary">Import</button>
         </form>
-    </div>
-    <div class="col-lg-6">
-        <div class="card card-body small">
-            <h2 class="h6">Expected format</h2>
-            <pre class="mb-2"><code>name,sku,description,category,price,stock,weight_kg</code></pre>
+
+        <div class="card card-body shadow-sm mt-4 small">
+            <h2 class="h6 section-title">Expected format</h2>
+            <pre class="code-block mb-2"><code>name,sku,description,category,price,stock,weight_kg</code></pre>
             <ul class="mb-0">
                 <li><strong>Required:</strong> name, sku, price, stock. Column order does not matter; headers are case-insensitive.</li>
                 <li>Products are matched by <strong>SKU</strong> (case-insensitive): existing products are updated, new ones are created.</li>
@@ -24,6 +30,51 @@
                 <li>Empty category becomes <em>@ProductRules.DefaultCategory</em>. Blank rows are ignored.</li>
                 <li>Invalid rows are skipped and reported; valid rows are imported in a single transaction.</li>
             </ul>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-danger-subtle">
+            <div class="card-header bg-danger-subtle text-danger-emphasis fw-semibold">
+                Content safety: rows with these values are rejected
+            </div>
+            <div class="card-body small">
+                <p>
+                    <strong>Name</strong>, <strong>description</strong> and <strong>category</strong> are checked on every row.
+                    A row that fails is <strong>not imported</strong>, and the report shows the row number, SKU, field and reason.
+                    The same rules apply when creating or editing a product by hand.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-3">
+                        <thead>
+                        <tr><th>Rejected</th><th>Examples</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="text-nowrap">HTML tags and comments</td>
+                            <td><code>&lt;script&gt;alert('xss')&lt;/script&gt;</code>, <code>&lt;img src=x&gt;</code>, <code>&lt;/title&gt;</code>, <code>&lt;!-- --&gt;</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-nowrap">Script vectors</td>
+                            <td><code>javascript:</code>, <code>onerror=</code>, <code>onclick=</code>, <code>data:text/html</code>, encoded <code>&amp;#60;</code> or <code>%3C</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-nowrap">SQL-injection patterns</td>
+                            <td><code>Robert'); DROP TABLE products;--</code>, <code>' OR '1'='1</code>, <code>UNION SELECT</code>, <code>DELETE FROM</code>, <code>;--</code>, <code>/* */</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-nowrap">Control characters</td>
+                            <td>Invisible characters other than tab and line breaks</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mb-1 fw-semibold text-success-emphasis">Still accepted (normal product text):</p>
+                <p class="mb-0">
+                    Apostrophes (<code>Kids' toy</code>), inch marks (<code>27" monitor; IPS</code>), <code>&amp;</code>, <code>%</code>,
+                    comparisons (<code>&lt; 5 USD</code>), symbols like <code>™</code>, and everyday words such as
+                    <em>select</em>, <em>update</em> or <em>drop</em> inside a sentence.
+                </p>
+            </div>
         </div>
     </div>
 </div>
