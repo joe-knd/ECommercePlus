@@ -39,6 +39,15 @@ cd ECommercePlus
 
 ## Quick start
 
+There are **two independent ways** to run the app. Pick one. They use **different ports**, so open the URL that matches the option you used:
+
+| How you start it | Open this URL | HTTP (redirects to HTTPS) | Ports defined in |
+|---|---|---|---|
+| **Option 1: Docker** (`docker compose up --build -d`) | **[https://localhost:8443](https://localhost:8443)** | `http://localhost:8080` | `compose.yaml` / `Dockerfile` |
+| **Option 2: .NET SDK** (`dotnet run --project ECommercePlus`) | **[https://localhost:7268](https://localhost:7268)** | `http://localhost:5213` | `ECommercePlus/Properties/launchSettings.json` |
+
+Ports 7268/5213 are **not** used by Docker, and 8443/8080 are **not** used by `dotnet run`. Both options can run at the same time without conflicts, but each has its own separate database.
+
 ### Option 1: Docker (recommended)
 
 From the repository root (the folder that contains `compose.yaml`):
@@ -79,6 +88,7 @@ docker run --rm -p 8443:8443 -p 8080:8080 -v ecommerceplus-data:/app/App_Data ec
 
 | Symptom | Cause and fix |
 |---|---|
+| Nothing at `https://localhost:7268` | That port is only for Option 2 (`dotnet run`). With Docker, open [https://localhost:8443](https://localhost:8443). |
 | `ERR_HTTP2_PROTOCOL_ERROR` or **400 Bad Request** | You opened `https://[::]:8443` or `http://[::]:8080` (copied from the log). `[::]` is a listen address, not a valid host. Open [https://localhost:8443](https://localhost:8443). |
 | *Your connection isn't private* / `NET::ERR_CERT_AUTHORITY_INVALID` | Expected with the self-signed certificate. Continue as described above, or use the trusted dev certificate below. |
 | *This site can't be reached* / connection refused | The container isn't running or is still starting. Check `docker compose ps` and `docker compose logs -f`, and wait for the *is ready* line. |
@@ -108,7 +118,7 @@ docker compose -f compose.yaml -f compose.devcert.yaml up --build -d
 
 On Linux, `dotnet dev-certs https --trust` only trusts the certificate for some browsers and tools. See the .NET docs for your distribution.
 
-### Option 2: Run locally with the .NET SDK
+### Option 2: Run locally with the .NET SDK (no Docker)
 
 Requires the .NET 10 SDK (see [Prerequisites](#prerequisites)). From the repository root:
 
@@ -117,7 +127,7 @@ dotnet dev-certs https --trust
 dotnet run --project ECommercePlus
 ```
 
-Open [https://localhost:7268](https://localhost:7268). Plain [http://localhost:5213](http://localhost:5213) redirects there. `dotnet dev-certs https --trust` only needs to run once per machine; it creates and trusts the local development certificate.
+Open [https://localhost:7268](https://localhost:7268) (this is the local-run port; with Docker use 8443). Plain [http://localhost:5213](http://localhost:5213) redirects there. `dotnet dev-certs https --trust` only needs to run once per machine; it creates and trusts the local development certificate.
 
 - The SQLite file is created at `ECommercePlus/App_Data/ecommerce.db`. Delete the folder to reset.
 - **You don't need to run migrations.** Pending EF Core migrations, including the Identity tables, are applied automatically at startup, followed by the admin and CSV seeding.
