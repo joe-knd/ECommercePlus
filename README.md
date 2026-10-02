@@ -15,17 +15,42 @@ A small e-commerce application built with **ASP.NET Core MVC (.NET 10)**, **EF C
 
 ---
 
+## Prerequisites
+
+| Tool | Version | Needed for | Download |
+|---|---|---|---|
+| Git | any recent | Cloning the repository | [git-scm.com](https://git-scm.com/downloads) |
+| Docker Desktop (Windows / macOS) or Docker Engine (Linux) | Docker 24+ with **Compose v2** (`docker compose`, not `docker-compose`) | Option 1: running in a container | [docker.com](https://docs.docker.com/get-docker/) |
+| .NET SDK | **10.0** (`dotnet --version` shows `10.0.x`) | Option 2: running locally, running the tests, and the optional trusted certificate for Docker | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/10.0) |
+| A modern browser | Chrome, Edge, Firefox, or Safari | Using the app | |
+
+- **Option 1 only needs Git and Docker.** The .NET SDK is inside the build image.
+- Supported on Windows, macOS (Intel and Apple Silicon), and Linux. The commands work in bash, zsh, and PowerShell.
+- Free ports: **8443** and **8080** for Docker, **7268** and **5213** for a local run.
+
+Get the code:
+
+```bash
+git clone https://github.com/joe-knd/ECommercePlus.git
+cd ECommercePlus
+```
+
+---
+
 ## Quick start
 
 ### Option 1: Docker (recommended)
 
-Requirements: Docker Desktop (Windows / macOS) or Docker Engine (Linux) with Compose v2. The image is multi-arch (x64 and Arm64, e.g. Apple Silicon), and the same commands work in bash, zsh, and PowerShell.
+From the repository root (the folder that contains `compose.yaml`):
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-Open [https://localhost:8443](https://localhost:8443). Plain [http://localhost:8080](http://localhost:8080) redirects there.
+- `--build` builds the image from the source code. Use it the first time and whenever the code changes.
+- `-d` (detached) runs the container in the background and gives you the terminal back. Leave out `-d` to see the logs live in the terminal; Ctrl+C then stops the app. Either way the app is the same.
+
+The first build takes a few minutes. Then open [https://localhost:8443](https://localhost:8443). Plain [http://localhost:8080](http://localhost:8080) redirects there.
 
 - Data is stored in the named volume `ecommerceplus-data`, so it survives `docker compose stop`, `docker compose down`, and rebuilds.
 - The container creates a **self-signed certificate** for `localhost` the first time it starts. Your browser shows a security warning once; choose *Advanced → Continue*. To avoid the warning, see [Optional: use the trusted .NET dev certificate in Docker](#optional-use-the-trusted-net-dev-certificate-in-docker).
@@ -36,11 +61,11 @@ Everyday commands:
 |---|---|
 | Build and start (first time, or after code changes) | `docker compose up --build -d` |
 | Start again without rebuilding | `docker compose up -d` |
-| Follow the logs | `docker compose logs -f` |
+| Check that it's running | `docker compose ps` |
+| Follow the logs (Ctrl+C stops following, not the app) | `docker compose logs -f` |
 | Stop (data is kept) | `docker compose down` |
 | Stop and **erase all data** (database, keys, certificate) | `docker compose down -v` |
-
-`-d` runs the container in the background. Without it, logs stream in the terminal and Ctrl+C stops the app.
+| Start over with a fresh database | `docker compose down -v` then `docker compose up -d` |
 
 Without Compose:
 
@@ -74,7 +99,7 @@ On Linux, `dotnet dev-certs https --trust` only trusts the certificate for some 
 
 ### Option 2: Run locally with the .NET SDK
 
-Requirements: [.NET SDK 10.0](https://dotnet.microsoft.com/download).
+Requires the .NET 10 SDK (see [Prerequisites](#prerequisites)). From the repository root:
 
 ```bash
 dotnet dev-certs https --trust
