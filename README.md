@@ -15,57 +15,67 @@ A small e-commerce application built with **ASP.NET Core MVC (.NET 10)**, **EF C
 
 ---
 
-## Prerequisites
+## How to run it: pick ONE option
 
-| Tool | Version | Needed for | Download |
-|---|---|---|---|
-| Git | any recent | Cloning the repository | [git-scm.com](https://git-scm.com/downloads) |
-| Docker Desktop (Windows / macOS) or Docker Engine (Linux) | Docker 24+ with **Compose v2** (`docker compose`, not `docker-compose`) | Option 1: running in a container | [docker.com](https://docs.docker.com/get-docker/) |
-| .NET SDK | **10.0** (`dotnet --version` shows `10.0.x`) | Option 2: running locally, running the tests, and the optional trusted certificate for Docker | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/10.0) |
-| A modern browser | Chrome, Edge, Firefox, or Safari | Using the app | |
+There are **two independent ways** to run the app. You only need one. Each has its own section below, and **each uses different ports**:
 
-- **Option 1 only needs Git and Docker.** The .NET SDK is inside the build image.
-- Supported on Windows, macOS (Intel and Apple Silicon), and Linux. The commands work in bash, zsh, and PowerShell.
-- Free ports: **8443** and **8080** for Docker, **7268** and **5213** for a local run.
+| | [Option 1: Docker](#option-1-run-with-docker) (recommended) | [Option 2: .NET SDK, no Docker](#option-2-run-locally-with-the-net-sdk-no-docker) |
+|---|---|---|
+| You need | Git + Docker | Git + .NET 10 SDK |
+| Start command | `docker compose up --build -d` | `dotnet run --project ECommercePlus` |
+| **Open this URL** | **[https://localhost:8443](https://localhost:8443)** | **[https://localhost:7268](https://localhost:7268)** |
+| HTTP port (redirects to HTTPS) | 8080 | 5213 |
+| Database location | Docker volume `ecommerceplus-data` | `ECommercePlus/App_Data/` folder |
+| HTTPS certificate | Self-signed (browser warns once) | .NET dev certificate (trusted) |
 
-Get the code:
+> ⚠️ Don't mix them up: **8443 is only for Docker**, and **7268 is only for `dotnet run`**. Both can run at the same time; each has its own separate database.
+
+Supported on Windows, macOS (Intel and Apple Silicon), and Linux. All commands work in bash, zsh, and PowerShell.
+
+### Get the code (both options)
+
+Requires [Git](https://git-scm.com/downloads).
 
 ```bash
 git clone https://github.com/joe-knd/ECommercePlus.git
 cd ECommercePlus
 ```
 
+All commands below are run from this folder (the repository root, which contains `compose.yaml`).
+
 ---
 
-## Quick start
+## Option 1: Run with Docker
 
-There are **two independent ways** to run the app. Pick one. They use **different ports**, so open the URL that matches the option you used:
+### 1.1 Requirements
 
-| How you start it | Open this URL | HTTP (redirects to HTTPS) | Ports defined in |
-|---|---|---|---|
-| **Option 1: Docker** (`docker compose up --build -d`) | **[https://localhost:8443](https://localhost:8443)** | `http://localhost:8080` | `compose.yaml` / `Dockerfile` |
-| **Option 2: .NET SDK** (`dotnet run --project ECommercePlus`) | **[https://localhost:7268](https://localhost:7268)** | `http://localhost:5213` | `ECommercePlus/Properties/launchSettings.json` |
+| Tool | Version | Download |
+|---|---|---|
+| Docker Desktop (Windows / macOS) or Docker Engine (Linux) | Docker 24+ with **Compose v2** (`docker compose`, not `docker-compose`) | [docker.com](https://docs.docker.com/get-docker/) |
 
-Ports 7268/5213 are **not** used by Docker, and 8443/8080 are **not** used by `dotnet run`. Both options can run at the same time without conflicts, but each has its own separate database.
+**You don't need the .NET SDK.** The Dockerfile builds the app inside the official .NET 10 SDK image and runs it in the smaller ASP.NET runtime image. Ports **8443** and **8080** must be free.
 
-### Option 1: Docker (recommended)
-
-From the repository root (the folder that contains `compose.yaml`):
+### 1.2 Start
 
 ```bash
 docker compose up --build -d
 ```
 
 - `--build` builds the image from the source code. Use it the first time and whenever the code changes.
-- `-d` (detached) runs the container in the background and gives you the terminal back. Leave out `-d` to see the logs live in the terminal; Ctrl+C then stops the app. Either way the app is the same.
+- `-d` (detached) runs the container in the background and gives you the terminal back. Leave out `-d` to see the logs live in the terminal; Ctrl+C then stops the app.
 
-The first build takes a few minutes. Then open [https://localhost:8443](https://localhost:8443). Plain [http://localhost:8080](http://localhost:8080) redirects there.
+The first build takes a few minutes. The app is ready when `docker compose logs` shows `ECommercePlus is ready. Open https://localhost:8443 in your browser.`
 
-- Data is stored in the named volume `ecommerceplus-data`, so it survives `docker compose stop`, `docker compose down`, and rebuilds.
-- Use **`localhost`** in the address. The log line `Now listening on: https://[::]:8443` shows the address the server listens on (`[::]` means "all network interfaces"). It isn't a URL you can open; the log line after it, `ECommercePlus is ready. Open https://localhost:8443`, is.
-- The container creates a **self-signed certificate** for `localhost` the first time it starts, so the browser warns *"Your connection isn't private"* once. Click **Advanced → Continue to localhost (unsafe)** in Edge/Chrome, or **Show Details → visit this website** in Safari. In Chrome, if there is no *Continue* link, click anywhere on the page and type `thisisunsafe`. To avoid the warning, see [Optional: use the trusted .NET dev certificate in Docker](#optional-use-the-trusted-net-dev-certificate-in-docker).
+### 1.3 Open the app
 
-Everyday commands:
+Open **[https://localhost:8443](https://localhost:8443)**. Plain [http://localhost:8080](http://localhost:8080) redirects there.
+
+- The container creates a **self-signed certificate** for `localhost` the first time it starts, so the browser warns *"Your connection isn't private"* once. Click **Advanced → Continue to localhost (unsafe)** in Edge/Chrome, or **Show Details → visit this website** in Safari. In Chrome, if there is no *Continue* link, click anywhere on the page and type `thisisunsafe`. To avoid the warning, see [1.7](#17-optional-use-the-trusted-net-dev-certificate-in-docker).
+- Use **`localhost`** in the address. The log line `Now listening on: https://[::]:8443` shows what the server listens on (`[::]` means "all network interfaces"). It isn't a URL you can open.
+
+Then [sign in as the admin](#signing-in-as-the-admin-both-options).
+
+### 1.4 Stop, restart, and reset
 
 | Goal | Command |
 |---|---|
@@ -77,27 +87,29 @@ Everyday commands:
 | Stop and **erase all data** (database, keys, certificate) | `docker compose down -v` |
 | Start over with a fresh database | `docker compose down -v` then `docker compose up -d` |
 
-Without Compose:
+Data is stored in the named volume `ecommerceplus-data`, so it survives `docker compose down` and rebuilds. Only `down -v` erases it.
+
+### 1.5 Without Compose (plain Docker)
 
 ```bash
 docker build -f ECommercePlus/Dockerfile -t ecommerceplus .
 docker run --rm -p 8443:8443 -p 8080:8080 -v ecommerceplus-data:/app/App_Data ecommerceplus
 ```
 
-#### Troubleshooting
+### 1.6 Troubleshooting (Docker)
 
 | Symptom | Cause and fix |
 |---|---|
-| Nothing at `https://localhost:7268` | That port is only for Option 2 (`dotnet run`). With Docker, open [https://localhost:8443](https://localhost:8443). |
+| Nothing at `https://localhost:7268` | 7268 is the port for Option 2. With Docker, open [https://localhost:8443](https://localhost:8443). |
 | `ERR_HTTP2_PROTOCOL_ERROR` or **400 Bad Request** | You opened `https://[::]:8443` or `http://[::]:8080` (copied from the log). `[::]` is a listen address, not a valid host. Open [https://localhost:8443](https://localhost:8443). |
-| *Your connection isn't private* / `NET::ERR_CERT_AUTHORITY_INVALID` | Expected with the self-signed certificate. Continue as described above, or use the trusted dev certificate below. |
+| *Your connection isn't private* / `NET::ERR_CERT_AUTHORITY_INVALID` | Expected with the self-signed certificate. Continue as described in [1.3](#13-open-the-app), or use [1.7](#17-optional-use-the-trusted-net-dev-certificate-in-docker). |
 | *This site can't be reached* / connection refused | The container isn't running or is still starting. Check `docker compose ps` and `docker compose logs -f`, and wait for the *is ready* line. |
 | *Port is already allocated* | Another program uses 8443 or 8080. Stop it, or change the left side of the mappings in `compose.yaml` (e.g. `"9443:8443"`) and open that port instead. |
 | Admin password `P@ssw0rd!123` isn't accepted | The volume is from an older run that already has an admin. Run `docker compose down -v` and start again. |
 
-#### Optional: use the trusted .NET dev certificate in Docker
+### 1.7 Optional: use the trusted .NET dev certificate in Docker
 
-Requires the .NET SDK on the host. Export the dev certificate once, then start with the `compose.devcert.yaml` override.
+Skip this unless the browser warning bothers you. It's the only Docker step that needs the .NET SDK on the host. Export the dev certificate once, then start with the `compose.devcert.yaml` override instead of the command in [1.2](#12-start). Use **https://localhost:8443** as usual.
 
 macOS / Linux (bash, zsh):
 
@@ -118,21 +130,62 @@ docker compose -f compose.yaml -f compose.devcert.yaml up --build -d
 
 On Linux, `dotnet dev-certs https --trust` only trusts the certificate for some browsers and tools. See the .NET docs for your distribution.
 
-### Option 2: Run locally with the .NET SDK (no Docker)
+---
 
-Requires the .NET 10 SDK (see [Prerequisites](#prerequisites)). From the repository root:
+## Option 2: Run locally with the .NET SDK (no Docker)
+
+### 2.1 Requirements
+
+| Tool | Version | Download |
+|---|---|---|
+| .NET SDK | **10.0** (`dotnet --version` shows `10.0.x`) | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/10.0) |
+
+**You don't need Docker.** Ports **7268** and **5213** must be free.
+
+### 2.2 Trust the development certificate (once per machine)
 
 ```bash
 dotnet dev-certs https --trust
+```
+
+This creates and trusts the local .NET HTTPS development certificate, so the browser shows no warning. On Linux it only trusts it for some browsers and tools; see the .NET docs for your distribution.
+
+### 2.3 Start
+
+```bash
 dotnet run --project ECommercePlus
 ```
 
-Open [https://localhost:7268](https://localhost:7268) (this is the local-run port; with Docker use 8443). Plain [http://localhost:5213](http://localhost:5213) redirects there. `dotnet dev-certs https --trust` only needs to run once per machine; it creates and trusts the local development certificate.
+The app is ready when the console shows `ECommercePlus is ready. Open https://localhost:7268 in your browser.`
 
-- The SQLite file is created at `ECommercePlus/App_Data/ecommerce.db`. Delete the folder to reset.
-- **You don't need to run migrations.** Pending EF Core migrations, including the Identity tables, are applied automatically at startup, followed by the admin and CSV seeding.
+**You don't need to run migrations.** Pending EF Core migrations, including the Identity tables, are applied automatically at startup, followed by the admin and CSV seeding.
 
-### Signing in as the admin
+### 2.4 Open the app
+
+Open **[https://localhost:7268](https://localhost:7268)**. Plain [http://localhost:5213](http://localhost:5213) redirects there.
+
+Then [sign in as the admin](#signing-in-as-the-admin-both-options).
+
+### 2.5 Stop and reset
+
+- **Stop:** press Ctrl+C in the terminal running `dotnet run`.
+- **Start over with a fresh database:** stop the app, delete the `ECommercePlus/App_Data` folder, and run it again.
+  - macOS / Linux: `rm -rf ECommercePlus/App_Data`
+  - Windows (PowerShell): `Remove-Item -Recurse -Force ECommercePlus\App_Data`
+
+### 2.6 Troubleshooting (local run)
+
+| Symptom | Cause and fix |
+|---|---|
+| Nothing at `https://localhost:8443` | 8443 is the port for Option 1 (Docker). With `dotnet run`, open [https://localhost:7268](https://localhost:7268). |
+| *Your connection isn't private* | The dev certificate isn't trusted. Run `dotnet dev-certs https --trust` and restart the browser. |
+| `The current .NET SDK does not support targeting .NET 10.0` | Install the .NET 10 SDK and check with `dotnet --version`. |
+| *Address already in use* | Another program uses 7268 or 5213. Stop it, or change `applicationUrl` in `ECommercePlus/Properties/launchSettings.json`. |
+| Admin password `P@ssw0rd!123` isn't accepted | The local database is from an older run. Stop the app and delete `ECommercePlus/App_Data` (see [2.5](#25-stop-and-reset)). |
+
+---
+
+## Signing in as the admin (both options)
 
 On first start, the app creates the `Admin` role and this account:
 
@@ -142,7 +195,9 @@ On first start, the app creates the `Admin` role and this account:
 
 You must **change the password at first sign-in**. The default is set in `appsettings.json` (`AdminSeed:Password`) and can be overridden with the `AdminSeed__Password` / `AdminSeed__Email` environment variables. If you set `AdminSeed__Password` to an empty value, a random password is generated instead and written to `App_Data/initial-admin-password.txt` (the file is deleted after the first password change).
 
-### Run the tests
+## Running the tests
+
+Requires the .NET 10 SDK. From the repository root:
 
 ```bash
 dotnet test
@@ -150,7 +205,7 @@ dotnet test
 
 There are 61 tests: unit tests for import, search, CRUD, checkout, payments, and temporary passwords, plus integration tests that boot the full app over HTTPS with `WebApplicationFactory` (sign-in, forced password change, role checks, the HTTP→HTTPS redirect, and Secure cookies).
 
-### Optional: EF Core tooling (only when you change the data model)
+## Optional: EF Core tooling (only when you change the data model)
 
 This is only for developers who change the entities; it isn't needed to run the app. The last argument after `migrations add` is a descriptive name you choose for the new migration (`AddProductBrand` below is just an example). The existing migrations are `InitialCreate` and `AddIdentity`.
 
@@ -160,6 +215,8 @@ dotnet ef migrations add AddProductBrand --project ECommercePlus --output-dir Da
 ```
 
 The next app start applies it automatically.
+
+---
 
 ---
 
